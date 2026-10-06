@@ -1,0 +1,412 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KanPom NHL</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #eef1e6;
+    --surface: #fbfbf5;
+    --surface-2: #f2f3ea;
+    --ink: #16211a;
+    --ink-dim: #5c6759;
+    --ink-faint: #8a9483;
+    --accent: #1f5fae;
+    --accent-ink: #06213f;
+    --accent-soft: #cfe0f5;
+    --good: #2f7d4f;
+    --bad: #b0432e;
+    --line: rgba(22, 33, 26, 0.13);
+    --line-strong: rgba(22, 33, 26, 0.22);
+    --header-bg: #0c1a2b;
+    --header-ink: #eef1e6;
+    --shadow: 0 1px 2px rgba(22,33,26,0.06), 0 6px 20px -12px rgba(22,33,26,0.25);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1420;
+      --surface: #161f2e;
+      --surface-2: #1c2638;
+      --ink: #eef1e6;
+      --ink-dim: #a5b0c0;
+      --ink-faint: #6d7a8a;
+      --accent: #5b9fe8;
+      --accent-ink: #071627;
+      --accent-soft: #16314f;
+      --good: #5cbf85;
+      --bad: #e2836c;
+      --line: rgba(238, 241, 230, 0.11);
+      --line-strong: rgba(238, 241, 230, 0.2);
+      --header-bg: #070d16;
+      --header-ink: #eef1e6;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1420;
+    --surface: #161f2e;
+    --surface-2: #1c2638;
+    --ink: #eef1e6;
+    --ink-dim: #a5b0c0;
+    --ink-faint: #6d7a8a;
+    --accent: #5b9fe8;
+    --accent-ink: #071627;
+    --accent-soft: #16314f;
+    --good: #5cbf85;
+    --bad: #e2836c;
+    --line: rgba(238, 241, 230, 0.11);
+    --line-strong: rgba(238, 241, 230, 0.2);
+    --header-bg: #070d16;
+    --header-ink: #eef1e6;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.55);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Public Sans', -apple-system, Segoe UI, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono, .num { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  header.masthead {
+    background: var(--header-bg);
+    color: var(--header-ink);
+    padding: 1.4rem 1.5rem 1.2rem;
+  }
+  .masthead-inner { max-width: 980px; margin: 0 auto; display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem 1.5rem; }
+  .wordmark {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 800;
+    font-size: 2.6rem;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    color: var(--header-ink);
+    text-wrap: balance;
+  }
+  .wordmark .kan { color: var(--accent); }
+  .tagline {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #93a0b2;
+  }
+  .sport-switch { max-width: 980px; margin: 0 auto 0.7rem; display: flex; gap: 0.5rem; }
+  .sport-switch a {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.66rem; letter-spacing: 0.09em; text-transform: uppercase;
+    text-decoration: none; color: #93a0b2; padding: 0.22rem 0.6rem; border-radius: 999px; border: 1px solid rgba(238,241,230,0.18);
+  }
+  .sport-switch a.active { color: var(--header-ink); background: rgba(238,241,230,0.12); border-color: transparent; }
+  .sport-switch a:hover:not(.active) { color: var(--header-ink); border-color: rgba(238,241,230,0.35); }
+  nav.tabs { max-width: 980px; margin: 0 auto; display: flex; gap: 1.6rem; padding-top: 0.9rem; border-top: 1px solid rgba(238,241,230,0.14); margin-top: 0.9rem; }
+  nav.tabs button {
+    background: none; border: none; cursor: pointer; padding: 0.15rem 0;
+    font-family: 'Public Sans', sans-serif; font-weight: 600; font-size: 0.92rem;
+    color: #93a0b2; border-bottom: 2px solid transparent;
+  }
+  nav.tabs button.active { color: var(--header-ink); border-bottom-color: var(--accent); }
+  nav.tabs button:hover { color: var(--header-ink); }
+
+  main { max-width: 980px; margin: 0 auto; padding: 1.6rem 1.5rem 4rem; }
+
+  .panel-intro { margin-bottom: 1.1rem; }
+  .panel-intro h1 { font-family: 'Big Shoulders Display', sans-serif; font-size: 1.5rem; font-weight: 700; margin: 0 0 0.25rem; text-wrap: balance; }
+  .panel-intro p { color: var(--ink-dim); font-size: 0.88rem; max-width: 62ch; line-height: 1.5; margin: 0; }
+  .snapshot-chip {
+    display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.6rem;
+    background: var(--accent-soft); color: var(--accent-ink); border-radius: 999px;
+    padding: 0.25rem 0.7rem; font-size: 0.74rem; font-weight: 600; font-family: 'IBM Plex Mono', monospace;
+  }
+  .snapshot-chip::before { content: '●'; color: var(--accent); font-size: 0.6rem; }
+
+  .controls { display: flex; gap: 0.7rem; margin: 1rem 0 0.8rem; flex-wrap: wrap; }
+  .search-box {
+    flex: 1; min-width: 180px; background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: 8px; padding: 0.5rem 0.8rem; font-family: 'Public Sans', sans-serif; font-size: 0.88rem;
+    color: var(--ink);
+  }
+  .search-box::placeholder { color: var(--ink-faint); }
+  .search-box:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  table.ranktable { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+  .table-scroll { overflow-x: auto; border-radius: 10px; }
+  table.ranktable thead th {
+    background: var(--header-bg); color: var(--header-ink);
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.55rem 0.7rem; text-align: right; cursor: pointer; user-select: none; white-space: nowrap;
+    position: sticky; top: 0;
+  }
+  table.ranktable thead th.left { text-align: left; }
+  table.ranktable thead th:hover { color: var(--accent); }
+  table.ranktable thead th .arrow { opacity: 0.5; margin-left: 0.2rem; }
+  table.ranktable tbody td { padding: 0.5rem 0.7rem; text-align: right; border-bottom: 1px solid var(--line); font-size: 0.86rem; white-space: nowrap; }
+  table.ranktable tbody td.left { text-align: left; }
+  table.ranktable tbody tr:hover { background: var(--surface-2); }
+  table.ranktable tbody tr:last-child td { border-bottom: none; }
+  td.rk { color: var(--ink-faint); font-family: 'IBM Plex Mono', monospace; }
+  td.team-cell { font-weight: 600; }
+  .conf-tag { color: var(--ink-faint); font-size: 0.76rem; font-weight: 400; }
+  .manual-badge {
+    display: inline-block; margin-left: 0.4rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-ink); background: var(--accent-soft);
+    border-radius: 4px; padding: 0.08rem 0.35rem; cursor: help; vertical-align: middle;
+  }
+  .injury-badge {
+    display: inline-block; margin-left: 0.4rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--bad); background: color-mix(in srgb, var(--bad) 15%, transparent);
+    border-radius: 4px; padding: 0.08rem 0.35rem; cursor: help; vertical-align: middle;
+  }
+  td.pos { color: var(--good); }
+  td.neg { color: var(--bad); }
+  td.gp-low { color: var(--accent); font-size: 0.78em; }
+  .empty-msg { padding: 2rem; text-align: center; color: var(--ink-faint); font-size: 0.9rem; }
+
+  .games-list { display: flex; flex-direction: column; gap: 0.7rem; }
+  .gamecard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.85rem 1.1rem; box-shadow: var(--shadow); }
+  .gc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.55rem; }
+  .gc-matchup { font-weight: 700; font-size: 0.98rem; }
+  .gc-matchup .at { color: var(--ink-faint); font-weight: 400; margin: 0 0.3rem; }
+  .gc-date { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--ink-faint); white-space: nowrap; }
+  .gc-body { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.2rem; flex-wrap: wrap; }
+  .gc-lines { display: grid; grid-template-columns: 4.6rem 1fr; row-gap: 0.3rem; column-gap: 0.7rem; font-size: 0.85rem; flex: 1; min-width: 220px; }
+  .gc-label { color: var(--ink-faint); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; align-self: center; }
+  .gc-values { font-family: 'IBM Plex Mono', monospace; }
+  .gc-values .sep { color: var(--ink-faint); margin: 0 0.5rem; }
+  .gc-nomarket { color: var(--ink-faint); font-style: italic; font-size: 0.82rem; }
+  .gc-picks { background: var(--accent-soft); color: var(--accent-ink); border-radius: 8px; padding: 0.5rem 0.8rem; min-width: 9.5rem; flex-shrink: 0; }
+  .gc-picks-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; margin-bottom: 0.25rem; opacity: 0.85; }
+  .gc-picks-row { font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; font-weight: 600; }
+
+  footer { max-width: 980px; margin: 2rem auto 0; padding: 1.2rem 1.5rem 2rem; border-top: 1px solid var(--line); color: var(--ink-faint); font-size: 0.78rem; line-height: 1.6; }
+  footer a { color: var(--accent); }
+  [hidden] { display: none !important; }
+  /* ---- NHL additions (paper trading) ---- */
+  .paper-banner {
+    max-width: 980px; margin: 0.9rem auto 0; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #f5c46b;
+  }
+  .paper-banner b { background: #f5c46b; color: #1a1205; padding: 0.15rem 0.5rem; border-radius: 4px; letter-spacing: 0.1em; }
+  .winbar { position: relative; display: inline-block; width: 70px; height: 7px; border-radius: 4px; background: var(--line-strong); vertical-align: middle; margin-left: 0.4rem; }
+  .winbar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--accent); }
+  .call { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em;
+          text-transform: uppercase; padding: 0.15rem 0.45rem; border-radius: 4px; border: 1px solid var(--line-strong); color: var(--ink-faint); }
+  .call.lean { color: #9a6100; border-color: #d39b2a; background: color-mix(in srgb, #f5c46b 25%, transparent); }
+  .call.rec { color: var(--surface); background: var(--good); border-color: var(--good); }
+  .gc-note { font-size: 0.78rem; color: var(--ink-dim); margin-top: 0.5rem; line-height: 1.45; }
+  .gc-note .warn { color: var(--bad); font-weight: 600; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.8rem; margin-bottom: 1.2rem; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; box-shadow: var(--shadow); }
+  .tile h3 { margin: 0 0 0.4rem; font-family: 'Big Shoulders Display', sans-serif; font-size: 1.15rem; }
+  .tile .big { font-family: 'IBM Plex Mono', monospace; font-size: 1.4rem; font-weight: 600; }
+  .tile .sub { color: var(--ink-dim); font-size: 0.8rem; margin-top: 0.25rem; line-height: 1.45; }
+  .pos { color: var(--good); } .neg { color: var(--bad); }
+  h2.sec { font-family: 'Big Shoulders Display', sans-serif; font-size: 1.15rem; margin: 1.4rem 0 0.6rem; }
+</style>
+
+<header class="masthead">
+  <div class="sport-switch">
+    <a href="index.html">College Football</a>
+    <a href="nfl.html">NFL</a>
+    <a href="nhl.html" class="active">NHL</a>
+  </div>
+  <div class="sport-switch">
+    <a href="nhl.html">Tonight's slate</a>
+    <a href="nhl-paper.html">Paper trades</a>
+    <a href="nhl-ratings.html" class="active">Power ratings</a>
+  </div>
+  <div class="masthead-inner">
+    <div>
+      <div class="wordmark"><span class="kan">Kan</span>Pom NHL</div>
+      <div class="tagline">NHL Power Index &middot; built from every shot since 2010</div>
+    </div>
+  </div>
+  <div class="paper-banner"><b>Paper trading</b> <span>Model research only &middot; no real bets &middot; not betting advice</span></div>
+  <nav class="tabs">
+    <button id="tab-rankings" class="active" type="button">Power Ratings</button>
+    <button id="tab-games" type="button" hidden>Tonight</button>
+    <button id="tab-paper" type="button" hidden>Paper Trading</button>
+  </nav>
+</header>
+
+<main>
+  <section id="panel-rankings">
+    <div class="panel-intro">
+      <h1>Model power ratings</h1>
+      <p>Every team plays every other team twice, home and away, inside the live game model: its regular lineup, its most recent starting goalie, and a neutral schedule. <strong>Win %</strong> is its average win chance against the whole league. xG figures are recent expected goals per game from KanPom's own shot model (every shot's location, type and context since 2010); <strong>Lineup</strong> is the regular lineup's 5-on-5 impact in xG per 60 from player ratings; <strong>GSAx</strong> is the starter's goals saved above expected per 100 xG faced.</p>
+      <span class="snapshot-chip" id="ratings-chip"></span>
+    </div>
+    <div class="controls"><input class="search-box" id="search" type="text" placeholder="Search team&hellip;" aria-label="Search team"></div>
+    <div class="table-scroll">
+      <table class="ranktable" id="ranktable">
+        <thead><tr>
+          <th data-k="rk" data-t="num">Rk</th>
+          <th class="left" data-k="team" data-t="str">Team</th>
+          <th data-k="win" data-t="num">Win %</th>
+          <th data-k="xgd" data-t="num">xGD/gm</th>
+          <th data-k="xgf" data-t="num">xGF</th>
+          <th data-k="xga" data-t="num">xGA</th>
+          <th data-k="lineup" data-t="num">Lineup</th>
+          <th data-k="pp" data-t="num">PP xG</th>
+          <th class="left" data-k="goalie" data-t="str">Goalie</th>
+          <th data-k="gsax" data-t="num">GSAx</th>
+          <th data-k="elo" data-t="num">Elo</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty-msg" id="empty-msg" hidden>No teams match &ldquo;<span id="empty-query"></span>&rdquo;.</div>
+    </div>
+  </section>
+
+  <section id="panel-games" hidden>
+    <div class="panel-intro">
+      <h1 id="games-title">Tonight</h1>
+      <p>The model's win probability for each game next to the market (DraftKings with the vig removed, and the Polymarket midpoint), plus the expected total. A <span class="call lean">lean</span> means the model clears the bar its best historical rule used; <span class="call rec">bet</span> appears only after a rule has proven itself on 100+ live paper bets. Paper trading only.</p>
+      <span class="snapshot-chip" id="games-chip"></span>
+    </div>
+    <div class="games-list" id="games-list"></div>
+  </section>
+
+  <section id="panel-paper" hidden>
+    <div class="panel-intro">
+      <h1>Paper trading record</h1>
+      <p>Every betting rule (64 of them: winners and totals, each priced four ways) records paper bets before games start, then settles them against the final score and the closing line. Nothing here is a real wager. A rule earns <strong>trusted</strong> status after 100+ settled paper bets with positive ROI and positive closing-line value; until then nothing on this site is a recommended bet.</p>
+      <span class="snapshot-chip" id="paper-chip"></span>
+    </div>
+    <div class="tiles" id="paper-tiles"></div>
+    <h2 class="sec">Best rules so far</h2>
+    <div class="table-scroll">
+      <table class="ranktable" id="rulestable">
+        <thead><tr>
+          <th class="left">Rule</th><th class="left">Market</th><th class="left">How it bets</th>
+          <th>Settled</th><th>ROI</th><th>CLV</th><th class="left">Stage</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty-msg" id="rules-empty" hidden>No paper bets have settled yet. The first ones settle the morning after tonight's games.</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  KanPom NHL is an independent research project &mdash; not affiliated with KenPom, the NHL, any sportsbook or Polymarket. <strong>Paper trading only:</strong> nothing on this page is a real bet or betting advice. Data: NHL play-by-play and shift charts, Daily Faceoff lineups and goalies, DraftKings lines via ESPN, Polymarket prices. Ratings are rebuilt every morning and the page refreshes through the day (<span id="foot-updated"></span>).
+</footer>
+
+<script id="data" type="application/json">{"date": "2026-10-06", "updated": "2026-10-06T17:05+00:00", "power": [{"team": "CAR", "name": "Hurricanes", "win": 0.6643, "xgf": 3.29, "xga": 2.77, "xgd": 0.52, "gf": 3.19, "ga": 2.7, "pp": 0.267, "pk": 0.214, "lineup": 0.954, "goalie": "Pyotr Kochetkov", "gsax": 0.1, "elo": 1575, "rk": 1}, {"team": "TBL", "name": "Lightning", "win": 0.651, "xgf": 3.06, "xga": 2.78, "xgd": 0.28, "gf": 3.08, "ga": 2.8, "pp": 0.239, "pk": 0.241, "lineup": 0.789, "goalie": "Andrei Vasilevskiy", "gsax": 11.7, "elo": 1547, "rk": 2}, {"team": "COL", "name": "Avalanche", "win": 0.6445, "xgf": 3.18, "xga": 2.65, "xgd": 0.53, "gf": 3.49, "ga": 2.71, "pp": 0.246, "pk": 0.229, "lineup": 0.878, "goalie": "Mackenzie Blackwood", "gsax": 4.2, "elo": 1580, "rk": 3}, {"team": "OTT", "name": "Senators", "win": 0.6152, "xgf": 3.13, "xga": 2.74, "xgd": 0.39, "gf": 3.12, "ga": 2.73, "pp": 0.247, "pk": 0.228, "lineup": 0.787, "goalie": "Linus Ullmark", "gsax": 6.4, "elo": 1537, "rk": 4}, {"team": "VGK", "name": "Golden Knights", "win": 0.5918, "xgf": 3.08, "xga": 2.62, "xgd": 0.46, "gf": 3.21, "ga": 2.89, "pp": 0.273, "pk": 0.218, "lineup": 0.775, "goalie": "Adin Hill", "gsax": -1.2, "elo": 1536, "rk": 5}, {"team": "DAL", "name": "Stars", "win": 0.5752, "xgf": 2.93, "xga": 2.7, "xgd": 0.24, "gf": 3.0, "ga": 2.84, "pp": 0.264, "pk": 0.217, "lineup": 0.538, "goalie": "Jake Oettinger", "gsax": 6.0, "elo": 1531, "rk": 6}, {"team": "EDM", "name": "Oilers", "win": 0.5643, "xgf": 3.14, "xga": 2.81, "xgd": 0.33, "gf": 3.48, "ga": 3.32, "pp": 0.297, "pk": 0.257, "lineup": 0.616, "goalie": "Devon Levi", "gsax": -2.8, "elo": 1514, "rk": 7}, {"team": "FLA", "name": "Panthers", "win": 0.5594, "xgf": 2.95, "xga": 2.88, "xgd": 0.07, "gf": 2.94, "ga": 3.12, "pp": 0.259, "pk": 0.258, "lineup": 0.707, "goalie": "Jacob Markstrom", "gsax": 1.2, "elo": 1500, "rk": 8}, {"team": "BUF", "name": "Sabres", "win": 0.557, "xgf": 3.05, "xga": 2.9, "xgd": 0.15, "gf": 3.32, "ga": 3.03, "pp": 0.235, "pk": 0.256, "lineup": 0.409, "goalie": "Ukko-Pekka Luukkonen", "gsax": 0.8, "elo": 1547, "rk": 9}, {"team": "MIN", "name": "Wild", "win": 0.5524, "xgf": 2.9, "xga": 2.85, "xgd": 0.05, "gf": 3.27, "ga": 2.94, "pp": 0.257, "pk": 0.256, "lineup": 0.589, "goalie": "Jesper Wallstedt", "gsax": 7.9, "elo": 1538, "rk": 10}, {"team": "MTL", "name": "Canadiens", "win": 0.5501, "xgf": 2.95, "xga": 3.17, "xgd": -0.22, "gf": 3.12, "ga": 3.03, "pp": 0.252, "pk": 0.256, "lineup": 0.257, "goalie": "Jakub Dobes", "gsax": 12.7, "elo": 1536, "rk": 11}, {"team": "UTA", "name": "Mammoth", "win": 0.5258, "xgf": 2.96, "xga": 2.84, "xgd": 0.12, "gf": 3.26, "ga": 2.95, "pp": 0.249, "pk": 0.228, "lineup": 0.233, "goalie": "Karel Vejmelka", "gsax": 4.3, "elo": 1513, "rk": 12}, {"team": "PIT", "name": "Penguins", "win": 0.5137, "xgf": 3.04, "xga": 2.85, "xgd": 0.19, "gf": 3.42, "ga": 3.15, "pp": 0.236, "pk": 0.231, "lineup": 0.288, "goalie": "Sergei Murashov", "gsax": -3.2, "elo": 1512, "rk": 13}, {"team": "NJD", "name": "Devils", "win": 0.5114, "xgf": 3.05, "xga": 2.88, "xgd": 0.17, "gf": 2.8, "ga": 3.14, "pp": 0.262, "pk": 0.235, "lineup": 0.563, "goalie": "Nico Daws", "gsax": -3.2, "elo": 1478, "rk": 14}, {"team": "CBJ", "name": "Blue Jackets", "win": 0.5015, "xgf": 2.9, "xga": 2.89, "xgd": 0.02, "gf": 3.0, "ga": 2.98, "pp": 0.243, "pk": 0.27, "lineup": 0.222, "goalie": "Jet Greaves", "gsax": 12.0, "elo": 1501, "rk": 15}, {"team": "NYR", "name": "Rangers", "win": 0.4967, "xgf": 2.73, "xga": 2.9, "xgd": -0.17, "gf": 3.0, "ga": 2.8, "pp": 0.244, "pk": 0.237, "lineup": 0.177, "goalie": "Igor Shesterkin", "gsax": 13.4, "elo": 1495, "rk": 16}, {"team": "WSH", "name": "Capitals", "win": 0.4934, "xgf": 2.92, "xga": 3.13, "xgd": -0.22, "gf": 3.11, "ga": 2.95, "pp": 0.244, "pk": 0.269, "lineup": 0.377, "goalie": "Charlie Lindgren", "gsax": 1.6, "elo": 1526, "rk": 17}, {"team": "ANA", "name": "Ducks", "win": 0.4833, "xgf": 3.03, "xga": 3.03, "xgd": 0.0, "gf": 3.13, "ga": 3.24, "pp": 0.252, "pk": 0.256, "lineup": 0.446, "goalie": "Lukas Dostal", "gsax": 1.2, "elo": 1483, "rk": 18}, {"team": "NYI", "name": "Islanders", "win": 0.48, "xgf": 2.93, "xga": 2.99, "xgd": -0.05, "gf": 2.84, "ga": 2.87, "pp": 0.214, "pk": 0.255, "lineup": 0.186, "goalie": "Ilya Sorokin", "gsax": 12.5, "elo": 1484, "rk": 19}, {"team": "STL", "name": "Blues", "win": 0.4766, "xgf": 2.74, "xga": 2.88, "xgd": -0.14, "gf": 3.01, "ga": 2.91, "pp": 0.207, "pk": 0.242, "lineup": 0.326, "goalie": "Jordan Binnington", "gsax": -6.2, "elo": 1510, "rk": 20}, {"team": "DET", "name": "Red Wings", "win": 0.4738, "xgf": 2.93, "xga": 2.93, "xgd": -0.0, "gf": 2.75, "ga": 3.1, "pp": 0.264, "pk": 0.261, "lineup": 0.135, "goalie": "John Gibson", "gsax": 5.9, "elo": 1479, "rk": 21}, {"team": "LAK", "name": "Kings", "win": 0.4731, "xgf": 2.82, "xga": 2.77, "xgd": 0.05, "gf": 2.86, "ga": 3.27, "pp": 0.237, "pk": 0.243, "lineup": 0.324, "goalie": "Anton Forsberg", "gsax": 2.0, "elo": 1476, "rk": 22}, {"team": "WPG", "name": "Jets", "win": 0.472, "xgf": 2.78, "xga": 2.94, "xgd": -0.15, "gf": 2.82, "ga": 3.08, "pp": 0.239, "pk": 0.249, "lineup": 0.18, "goalie": "Clay Stevenson", "gsax": 4.4, "elo": 1494, "rk": 23}, {"team": "BOS", "name": "Bruins", "win": 0.4705, "xgf": 2.81, "xga": 3.03, "xgd": -0.22, "gf": 2.9, "ga": 2.95, "pp": 0.236, "pk": 0.266, "lineup": 0.108, "goalie": "Jeremy Swayman", "gsax": 10.1, "elo": 1504, "rk": 24}, {"team": "PHI", "name": "Flyers", "win": 0.4616, "xgf": 2.72, "xga": 2.96, "xgd": -0.24, "gf": 2.68, "ga": 3.01, "pp": 0.234, "pk": 0.229, "lineup": 0.106, "goalie": "Dan Vladar", "gsax": 2.7, "elo": 1484, "rk": 25}, {"team": "NSH", "name": "Predators", "win": 0.4315, "xgf": 2.78, "xga": 3.03, "xgd": -0.25, "gf": 2.92, "ga": 3.0, "pp": 0.244, "pk": 0.237, "lineup": 0.077, "goalie": "Juuse Saros", "gsax": 0.7, "elo": 1479, "rk": 26}, {"team": "TOR", "name": "Maple Leafs", "win": 0.4152, "xgf": 2.73, "xga": 3.26, "xgd": -0.53, "gf": 2.84, "ga": 3.37, "pp": 0.236, "pk": 0.265, "lineup": 0.152, "goalie": "Sergei Bobrovsky", "gsax": -0.3, "elo": 1463, "rk": 27}, {"team": "SJS", "name": "Sharks", "win": 0.3955, "xgf": 2.69, "xga": 3.07, "xgd": -0.38, "gf": 2.97, "ga": 3.42, "pp": 0.235, "pk": 0.275, "lineup": -0.011, "goalie": "Yaroslav Askarov", "gsax": -5.8, "elo": 1448, "rk": 28}, {"team": "SEA", "name": "Kraken", "win": 0.3919, "xgf": 2.66, "xga": 2.95, "xgd": -0.29, "gf": 2.95, "ga": 3.06, "pp": 0.221, "pk": 0.256, "lineup": -0.179, "goalie": "Joey Daccord", "gsax": 2.4, "elo": 1467, "rk": 29}, {"team": "CGY", "name": "Flames", "win": 0.3615, "xgf": 2.63, "xga": 3.12, "xgd": -0.49, "gf": 2.58, "ga": 3.33, "pp": 0.221, "pk": 0.242, "lineup": -0.255, "goalie": "Dustin Wolf", "gsax": 1.5, "elo": 1449, "rk": 30}, {"team": "CHI", "name": "Blackhawks", "win": 0.3366, "xgf": 2.63, "xga": 3.17, "xgd": -0.54, "gf": 2.55, "ga": 3.48, "pp": 0.219, "pk": 0.231, "lineup": -0.562, "goalie": "Spencer Knight", "gsax": 4.0, "elo": 1416, "rk": 31}, {"team": "VAN", "name": "Canucks", "win": 0.3093, "xgf": 2.64, "xga": 3.16, "xgd": -0.53, "gf": 2.99, "ga": 3.69, "pp": 0.222, "pk": 0.269, "lineup": -0.556, "goalie": "Kevin Lankinen", "gsax": -6.4, "elo": 1416, "rk": 32}], "games": [], "paper": {"markets": {}, "top": [], "trusted": 0, "rules_total": 0}}</script>
+<script>
+(function () {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const pct = (p) => (p * 100).toFixed(1) + "%";
+  const c1 = (p) => (p * 100).toFixed(1) + "¢";
+  const sg = (x, d = 2) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(d);
+  const ct = (iso, o) => new Date(iso).toLocaleString("en-US", { timeZone: "America/Chicago", ...o });
+  const upd = ct(D.updated, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " CT";
+  $("ratings-chip").textContent = "Updated " + upd;
+  $("games-chip").textContent = "Updated " + upd;
+  $("paper-chip").textContent = "Updated " + upd;
+  $("foot-updated").textContent = "last update " + upd;
+
+  // ---- tabs (remembered per viewer)
+  const tabs = { rankings: $("tab-rankings"), games: $("tab-games"), paper: $("tab-paper") };
+  function show(k) {
+    for (const [name, btn] of Object.entries(tabs)) {
+      btn.classList.toggle("active", name === k);
+      $("panel-" + name).hidden = name !== k;
+    }
+    try { localStorage.setItem("kanpom-nhl-tab", k); } catch (e) {}
+  }
+  Object.entries(tabs).forEach(([k, b]) => b.addEventListener("click", () => show(k)));
+  const hashTab = (location.hash || "").slice(1);
+  show("rankings");                    // slate and paper trades have their own pages on the site
+
+  // ---- power ratings (sortable, searchable)
+  const rows = D.power;
+  let sortK = "rk", sortDir = 1;
+  function drawRank() {
+    const q = $("search").value.trim().toLowerCase();
+    const list = rows.filter((r) => !q || r.team.toLowerCase().includes(q) || r.name.toLowerCase().includes(q))
+      .slice().sort((a, b) => { const x = a[sortK], y = b[sortK]; return (x === null) - (y === null) || (x < y ? -1 : x > y ? 1 : 0) * sortDir; });
+    $("empty-msg").hidden = list.length > 0;
+    $("empty-query").textContent = q;
+    $("ranktable").querySelector("tbody").innerHTML = list.map((r) => `<tr>
+      <td class="rk">${r.rk}</td>
+      <td class="left team-cell">${esc(r.team)} <span class="conf-tag">${esc(r.name)}</span></td>
+      <td class="num">${pct(r.win)}<span class="winbar" aria-hidden="true"><i style="width:${(r.win * 100).toFixed(0)}%"></i></span></td>
+      <td class="num ${r.xgd >= 0 ? "pos" : "neg"}">${sg(r.xgd)}</td>
+      <td class="num">${r.xgf.toFixed(2)}</td><td class="num">${r.xga.toFixed(2)}</td>
+      <td class="num ${r.lineup === null ? "" : r.lineup >= 0 ? "pos" : "neg"}">${r.lineup === null ? "—" : sg(r.lineup)}</td>
+      <td class="num">${r.pp.toFixed(3)}</td>
+      <td class="left">${esc(r.goalie)}</td>
+      <td class="num ${r.gsax >= 0 ? "pos" : "neg"}">${sg(r.gsax, 1)}</td>
+      <td class="num">${r.elo}</td></tr>`).join("");
+  }
+  $("ranktable").querySelectorAll("th").forEach((th) => th.addEventListener("click", () => {
+    const k = th.dataset.k; if (!k) return;
+    sortDir = sortK === k ? -sortDir : (th.dataset.t === "num" && k !== "rk" ? -1 : 1); sortK = k; drawRank();
+  }));
+  $("search").addEventListener("input", drawRank);
+  drawRank();
+
+  // ---- tonight
+  if (D.games.length) {
+    const d0 = new Date(D.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    $("games-title").textContent = "Tonight · " + d0;
+  }
+  function callTag(c, label) {
+    if (!c) return '<span class="call">no line</span>';
+    if (c.level === "RECOMMENDED") return `<span class="call rec">bet ${esc(label)}</span>`;
+    if (c.level === "LEAN") return `<span class="call lean">lean ${esc(label)}${c.pending && c.pending.length ? " · pending" : ""}</span>`;
+    return '<span class="call">no bet</span>';
+  }
+  const games = D.games.slice().sort((a, b) => a.start.localeCompare(b.start));
+  $("games-list").innerHTML = games.length ? games.map((g) => {
+    const pm = g.pm, tc = g.total_call, tb = g.total_book, tp = g.total_pm;
+    const gl = (s) => `${esc(g.goalies[s].name || "TBD")}${g.goalies[s].status ? "" : " (projected)"}`;
+    const miss = [...g.missing.away.map((n) => `${g.away} ${n}`), ...g.missing.home.map((n) => `${g.home} ${n}`)];
+    const winLabel = g.call.team || "";
+    const totLabel = tc && tc.side ? `${tc.side} ${tc.line}` : "";
+    return `<article class="gamecard">
+      <div class="gc-top"><div class="gc-matchup">${esc(g.away)}<span class="at">@</span>${esc(g.home)}</div>
+        <div class="gc-date">${ct(g.start, { hour: "numeric", minute: "2-digit" })} CT</div></div>
+      <div class="gc-body">
+        <div class="gc-lines">
+          <span class="gc-label">Model</span><span class="gc-values">${esc(g.home)} ${pct(g.p_home)}<span class="sep">|</span>${esc(g.away)} ${pct(1 - g.p_home)}</span>
+          <span class="gc-label">Market</span><span class="gc-values">${g.book_fair !== null && g.book_fair !== undefined ? `DK ${pct(g.book_fair)}` : "DK —"}<span class="sep">|</span>${pm ? `Poly ${c1(pm.mid)}` : "Poly —"}</span>
+          <span class="gc-label">Total</span><span class="gc-values">${g.exp_total ? `model ${g.exp_total.toFixed(2)} goals` : "—"}${tb ? `<span class="sep">|</span>DK ${tb.line}: over ${pct(tb.fair_over)}, model ${pct(tb.model_over)}` : ""}</span>
+          <span class="gc-label">Goalies</span><span class="gc-values" style="font-family:'Public Sans',sans-serif">${gl("away")} vs ${gl("home")}</span>
+        </div>
+        <div class="gc-picks">
+          <div class="gc-picks-label">Paper calls</div>
+          <div class="gc-picks-row">Winner: ${callTag(g.call, winLabel)}</div>
+          <div class="gc-picks-row" style="margin-top:0.3rem">Total: ${callTag(tc, totLabel)}</div>
+        </div>
+      </div>
+      ${miss.length ? `<div class="gc-note"><span class="warn">Out:</span> ${miss.map(esc).join(", ")}</div>` : ""}
+    </article>`;
+  }).join("") : '<div class="empty-msg">No NHL games today.</div>';
+
+  // ---- paper trading
+  const P = D.paper;
+  $("paper-tiles").innerHTML = Object.entries(P.markets).map(([name, m]) => `<div class="tile">
+      <h3>${esc(name)}</h3>
+      <div class="big ${m.bets ? (m.pnl >= 0 ? "pos" : "neg") : ""}">${m.bets ? (m.roi * 100).toFixed(1) + "% ROI" : "no results yet"}</div>
+      <div class="sub">${m.bets ? `${m.w}–${m.l}${m.p ? "–" + m.p : ""} on ${m.bets} settled paper bets · ${m.pnl >= 0 ? "+" : "−"}$${Math.abs(m.pnl).toFixed(2)} on $${m.staked.toFixed(2)} staked` : "First paper bets settle after tonight's games."}
+        <br>Closing-line value: ${m.clv === null ? "—" : (m.clv >= 0 ? "+" : "−") + Math.abs(m.clv * 100).toFixed(2) + "¢ per bet"} · ${m.open} open</div>
+    </div>`).join("") + `<div class="tile"><h3>Trusted rules</h3><div class="big">${P.trusted} of ${P.rules_total}</div>
+      <div class="sub">Each rule starts with a virtual $250 bankroll. Trusted = 100+ settled bets, positive ROI and CLV.</div></div>`;
+  const ex = { fair0: "no-vig fair price", fair1: "fair price + 1¢", pm_taker: "Polymarket, taking the ask", pm_maker: "Polymarket limit order" };
+  $("rulestable").querySelector("tbody").innerHTML = P.top.map((r) => `<tr>
+      <td class="left mono">${esc(r.rule)}</td><td class="left">${esc(r.market)}</td>
+      <td class="left">${esc(ex[r.exec] || r.exec)}, ${esc(r.timing)}, ${(r.blend * 100).toFixed(0)}% model, ${(r.min_edge * 100).toFixed(0)}¢ edge</td>
+      <td class="num">${r.n}</td><td class="num ${r.roi >= 0 ? "pos" : "neg"}">${(r.roi * 100).toFixed(1)}%</td>
+      <td class="num">${r.clv === null ? "—" : (r.clv >= 0 ? "+" : "−") + Math.abs(r.clv * 100).toFixed(2) + "¢"}</td>
+      <td class="left">${esc(r.stage.toLowerCase())}</td></tr>`).join("");
+  $("rules-empty").hidden = P.top.length > 0;
+})();
+</script>
