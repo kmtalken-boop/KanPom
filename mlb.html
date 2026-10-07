@@ -1,0 +1,298 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MLB Slate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout mirrors the NHL slate: a scoreboard table up top, then one card per game with both teams
+   side by side (stacking on phones). Green = model/market accent; red = absences; amber = lean. */
+:root {
+  --page: #f4f6f2; --card: #ffffff; --ink: #17211b; --muted: #5d6b61; --line: #dce3dc;
+  --accent: #1f6b44; --accent-soft: #e2f0e7; --red: #c8313b; --red-soft: #fbe7e8;
+  --pos: #1e7d55; --neg: #b4552d;
+  --lean: #9a6100; --lean-soft: #fdf0d5;
+  --display: "Saira Condensed", "Arial Narrow", sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --page: #0f1712; --card: #17221b; --ink: #e6efe8; --muted: #93a79a; --line: #26352b;
+  --accent: #5fc58d; --accent-soft: #1a2f23; --red: #ef6b73; --red-soft: #3a1d21;
+  --pos: #5cc595; --neg: #e08c63; --lean: #f2b84b; --lean-soft: #3a2c10; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --page: #0f1712; --card: #17221b; --ink: #e6efe8; --muted: #93a79a; --line: #26352b;
+  --accent: #5fc58d; --accent-soft: #1a2f23; --red: #ef6b73; --red-soft: #3a1d21;
+  --pos: #5cc595; --neg: #e08c63; --lean: #f2b84b; --lean-soft: #3a2c10; color-scheme: dark }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 48px; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: .01em; text-wrap: balance; margin: 0; }
+h1 { font-size: 2.4rem; line-height: 1.05; } h2 { font-size: 1.6rem; } h3 { font-size: 1.15rem; font-weight: 600; }
+.label { font: 600 .72rem/1.2 var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 8px; border-bottom: 3px solid var(--accent); padding-bottom: 14px; }
+header .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: .9rem; }
+.note { color: var(--muted); font-size: .9rem; max-width: 76ch; }
+.tablebox { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; min-width: 880px; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font: 600 .72rem/1.2 var(--body); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); background: var(--page); }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; } td.num, th { white-space: nowrap; }
+.match { font-family: var(--display); font-weight: 600; font-size: 1.1rem; white-space: nowrap; }
+.match a { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--muted); }
+.match a:hover, .match a:focus-visible { color: var(--accent); outline: none; border-bottom-color: var(--accent); }
+.gap { display: inline-block; min-width: 4.2em; text-align: right; padding: 1px 6px; border-radius: 4px; }
+.gap.big { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.chip { display: inline-block; font-size: .78rem; padding: 1px 7px; border-radius: 999px; background: var(--red-soft); color: var(--red); margin: 1px 4px 1px 0; white-space: nowrap; }
+.chip.soft { background: var(--page); color: var(--muted); border: 1px solid var(--line); }
+.chip.warn { background: var(--lean-soft); color: var(--lean); }
+.pbar { position: relative; height: 10px; border-radius: 5px; background: var(--line); width: 140px; }
+.pbar .home { position: absolute; right: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 0 5px 5px 0; }
+.pbar .tick { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.game { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 16px; scroll-margin-top: 16px; }
+.game-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+.fact { display: grid; gap: 1px; } .fact b { font-family: var(--mono); font-weight: 500; font-size: 1rem; }
+.envline { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: .88rem; color: var(--muted); }
+.envline b { color: var(--ink); font-family: var(--mono); font-weight: 500; }
+.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .sides { grid-template-columns: 1fr; } }
+.side { min-width: 0; display: grid; gap: 10px; align-content: start; }
+.side-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; }
+.sp { font-size: .92rem; } .sp .st { color: var(--muted); }
+.strength { font-size: .88rem; color: var(--muted); } .strength b { color: var(--ink); font-family: var(--mono); font-weight: 500; }
+.prow { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) 3.2em 64px 3.4em 3.6em; gap: 8px; align-items: center; font-size: .9rem; }
+.prow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .nm.unrated { color: var(--muted); font-style: italic; }
+.prow .slot { font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+.prow .woba, .prow .val, .prow .sit { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .82rem; text-align: right; }
+.prow .woba { color: var(--muted); } .prow .sit { color: var(--muted); }
+.bar { position: relative; height: 8px; background: var(--page); border-radius: 2px; }
+.bar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--line); }
+.bar i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.outs { display: flex; flex-wrap: wrap; gap: 4px; }
+.legend { display: grid; gap: 4px; font-size: .88rem; color: var(--muted); max-width: 84ch; }
+.callbox { border-radius: 6px; padding: 14px 16px; display: grid; gap: 8px; border: 2px solid var(--line); background: var(--card); }
+.callbox.has { border-color: var(--lean); }
+.callbox .tally { display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline; }
+.callbox .tally b { font-family: var(--display); font-size: 2rem; line-height: 1; }
+.pill { display: inline-block; font: 700 .78rem/1 var(--body); letter-spacing: .07em; text-transform: uppercase; padding: 5px 9px; border-radius: 4px; white-space: nowrap; }
+.pill.lean { background: var(--lean-soft); color: var(--lean); border: 1px solid var(--lean); }
+.pill.none { background: var(--page); color: var(--muted); border: 1px solid var(--line); }
+.verdict { border-radius: 6px; padding: 12px 14px; display: grid; gap: 6px; border-left: 6px solid var(--line); background: var(--page); }
+.verdict.lean { border-left-color: var(--lean); background: var(--lean-soft); }
+.verdict .big { font-family: var(--display); font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+.verdict .terms { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: .92rem; } .verdict .terms b { font-family: var(--mono); font-weight: 500; }
+.verdict .small { font-size: .88rem; color: var(--muted); }
+.leanlist { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.leanlist a { color: inherit; }
+footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { .game:target { animation: flash 1.2s ease-out; } }
+@keyframes flash { from { box-shadow: 0 0 0 3px var(--accent); } to { box-shadow: 0 0 0 0 transparent; } }
+</style>
+
+<div style="background:#0c1a2b;color:#eef1e6;padding:10px 16px 12px;font:600 11px/1.4 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase">
+  <div style="max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;justify-content:space-between">
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="font:800 20px/1 'Saira Condensed','Arial Narrow',sans-serif;letter-spacing:.01em;text-transform:none;margin-right:6px"><span style="color:#5b9fe8">Kan</span>Pom MLB</span>
+      <a href="index.html" style="color:#93a0b2;background:transparent;border:1px solid rgba(238,241,230,0.18);border-radius:999px;padding:3px 10px;text-decoration:none">College Football</a> <a href="nfl.html" style="color:#93a0b2;background:transparent;border:1px solid rgba(238,241,230,0.18);border-radius:999px;padding:3px 10px;text-decoration:none">NFL</a> <a href="nhl.html" style="color:#93a0b2;background:transparent;border:1px solid rgba(238,241,230,0.18);border-radius:999px;padding:3px 10px;text-decoration:none">NHL</a> <a href="mlb.html" style="color:#eef1e6;background:rgba(238,241,230,0.12);border:1px solid rgba(238,241,230,0.18);border-radius:999px;padding:3px 10px;text-decoration:none">MLB</a>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><a href="mlb.html" style="color:#eef1e6;background:rgba(238,241,230,0.12);border:1px solid rgba(238,241,230,0.18);border-radius:999px;padding:3px 10px;text-decoration:none">Today's slate</a></div>
+  </div>
+  <div style="max-width:1120px;margin:8px auto 0;color:#f5c46b"><span style="background:#f5c46b;color:#1a1205;padding:2px 7px;border-radius:4px">Paper trading</span>&nbsp; Model research only &middot; no real bets &middot; not betting advice &middot; refreshes when the model runs</div>
+</div>
+<div class="wrap">
+  <header>
+    <div class="label">MLB testing model &middot; paper only</div>
+    <h1 id="title">Today's slate</h1>
+    <div class="meta" id="meta"></div>
+    <p class="note">Win probabilities and totals come from the idea lab's champion models (team Elo and form, starter strikeout/walk/homer rates, the lineup each team actually posted, bullpen load, park, umpire and weather &mdash; whichever blocks the lab has adopted), refit every run on all past games. The older production model is shown alongside for comparison. Lineups are MLB's posted batting orders; if one isn't posted yet the page uses the nine bats who started most of the team's last ten games.</p>
+  </header>
+
+  <section class="callbox" id="callbox"></section>
+
+  <section style="display:grid;gap:10px">
+    <h2>Model vs Polymarket</h2>
+    <div class="tablebox"><table>
+      <thead><tr>
+        <th>Winner</th><th>Total</th><th>1st inning</th><th>Game</th><th>Start (CT)</th><th>Home win</th><th class="r">Model</th>
+        <th class="r">Polymarket</th><th class="r">Gap</th><th>Starters</th><th>Key absences</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <p class="note">Gap = model minus the Polymarket mid for the home team, in cents. Buying costs the ask plus Polymarket's taker fee of 0.05&middot;p&middot;(1&minus;p) per share (about 1.2&cent; at 50&cent;), so small gaps are noise. A lean needs at least +<span id="minev"></span>% expected value <i>after</i> that fee.</p>
+  </section>
+
+  <section id="games" style="display:grid;gap:18px"></section>
+
+  <section class="legend">
+    <h3 style="color:var(--ink)">Reading the lineups</h3>
+    <div><b>wOBA</b> is each hitter's season weighted on-base average (Statcast, with his current team). <b>Bars</b> show his run value per game over a replacement-level bat in that batting slot (leadoff bats most often); right of center is above replacement. Hitters under 15 plate appearances are grey italics and count at replacement level. Values are regressed toward the mean for small samples (150 PA of prior).</div>
+    <div><b>If sits</b> is the change in the team's win probability, in points, if that hitter sat and the team's most-used available bench bat (50+ PA, on the active roster, not already out) took his spot. Rule of thumb: 10 runs is about 1 win, so a run in one game is about 10 points. Replacement level is league-average wOBA minus .040. These are conventions, not model outputs.</div>
+    <div><b>Starters</b> show last season's strikeout, walk and home-run rates per nine (Statcast, 86+ batters faced) and the runs per game he saves against a league-average starter over about 5&frac12; innings. The model's starter inputs use the same prior-season line.</div>
+    <div><b>Bullpen</b> is relief pitches thrown in the previous three days against the league's typical load; &ldquo;taxed&rdquo; means over 20% above typical.</div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script id="data" type="application/json">{"date": "2026-10-07", "generated": "2026-10-07T04:03+00:00", "model": {"ml": {"id": "06c59215", "blocks": ["elo", "starter_rates", "lineup"], "n_train": 22897}, "totals": {"id": "e183ae94", "blocks": ["rolling", "starters", "park", "lineup"], "n_train": 22897}}, "record": {"n": 916, "roi_pct": 0.84, "clv_pct": -7.99}, "min_ev_pct": 5.0, "games": [{"game_pk": 849822, "start": "2026-10-07 22:00:00", "status": "Scheduled", "home": "Atlanta Braves", "away": "Los Angeles Dodgers", "p_home": 0.464, "p_home_prod": 0.438, "total_prod": 7.96, "polymarket": {"bid": 0.42000000000000004, "ask": 0.43000000000000005, "mid": 0.425}, "elo_d": -36, "lineup_d": -1, "call": {"level": "LEAN", "side": "home", "team": "Atlanta Braves", "prob": 0.464, "bid": 0.42000000000000004, "ask": 0.43000000000000005, "fee": 0.0123, "allin": 0.4423, "edge": 0.022, "ev_pct": 5.0, "max_ask": 0.43, "stake_pct": 0.99}, "totals": {"exp_total": 8.32, "lines": [], "call": {"level": "NO BET", "why": "no liquid Polymarket totals line"}}, "first_inning": {"yrfi_prob": 0.492, "call": {"level": "NO BET", "why": "no liquid Polymarket first-inning market"}}, "env": {"venue": "Truist Park", "park_dev": 0.22, "umpire": null, "ump_dev": 0.0, "temp": null, "wind_mph": null, "wind_dir": null, "condition": null, "roof": "Open", "game_type": "D"}, "teams": {"home": {"abbr": "ATL", "name": "Atlanta Braves", "starter": {"id": 641816, "name": "Tyler Mahle", "status": "Probable", "prior": {"season": 2025, "pa": 340, "so9": 7.3, "bb9": 3.4, "hr9": 0.68, "fip": 0.51}, "current": {"season": 2026, "pa": 657, "so9": 8.8, "bb9": 2.9, "hr9": 1.18, "fip": 0.73}, "runs_vs_avg": 0.25, "imputed": false}, "lineup": {"players": [{"slot": 1, "id": 686948, "name": "Drake Baldwin", "pa": 657, "woba": 0.362, "rated": true, "runs_vs_repl": 0.275, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.463, "d_win_pts": -4.6}}, {"slot": 2, "id": 660670, "name": "Ronald Acu\u00f1a Jr.", "pa": 500, "woba": 0.352, "rated": true, "runs_vs_repl": 0.235, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.419, "d_win_pts": -4.2}}, {"slot": 3, "id": 621566, "name": "Matt Olson", "pa": 739, "woba": 0.354, "rated": true, "runs_vs_repl": 0.241, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.421, "d_win_pts": -4.2}}, {"slot": 4, "id": 671739, "name": "Michael Harris II", "pa": 664, "woba": 0.353, "rated": true, "runs_vs_repl": 0.232, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.409, "d_win_pts": -4.1}}, {"slot": 5, "id": 643289, "name": "Mauricio Dub\u00f3n", "pa": 658, "woba": 0.327, "rated": true, "runs_vs_repl": 0.153, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.326, "d_win_pts": -3.3}}, {"slot": 6, "id": 645277, "name": "Ozzie Albies", "pa": 724, "woba": 0.305, "rated": true, "runs_vs_repl": 0.085, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.254, "d_win_pts": -2.5}}, {"slot": 7, "id": 663586, "name": "Austin Riley", "pa": 669, "woba": 0.298, "rated": true, "runs_vs_repl": 0.064, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.23, "d_win_pts": -2.3}}, {"slot": 8, "id": 642086, "name": "642086", "pa": 320, "woba": 0.312, "rated": true, "runs_vs_repl": 0.107, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.268, "d_win_pts": -2.7}}, {"slot": 9, "id": 573262, "name": "Mike Yastrzemski", "pa": 430, "woba": 0.315, "rated": true, "runs_vs_repl": 0.11, "sit": {"replacement": "Ha-Seong Kim", "d_runs": -0.267, "d_win_pts": -2.7}}], "next_man_up": {"id": 673490, "name": "Ha-Seong Kim", "woba": 0.23521411020690874, "raw_woba": 0.18798701298701298, "pa": 154}, "replacement_woba": 0.284, "league_woba": 0.324, "baseline_woba": 0.323, "lineup_woba": 0.331, "vs_baseline": 0.008, "lineup_runs_vs_repl": 1.5}, "lineup_source": "projected: the nine bats who started most of the last 10 games", "missing_regulars": [], "bullpen": {"relief_pitches_3d": 96, "games_3d": 1, "typical": 64, "taxed": true}, "injuries": [], "exp_runs": 3.77}, "away": {"abbr": "LOS", "name": "Los Angeles Dodgers", "starter": {"id": 607192, "name": "Tyler Glasnow", "status": "Probable", "prior": {"season": 2025, "pa": 472, "so9": 11.5, "bb9": 4.8, "hr9": 0.98, "fip": 0.46}, "current": {"season": 2026, "pa": 324, "so9": 13.7, "bb9": 3.2, "hr9": 0.96, "fip": -0.6}, "runs_vs_avg": 0.28, "imputed": false}, "lineup": {"players": [{"slot": 1, "id": 605141, "name": "Mookie Betts", "pa": 557, "woba": 0.349, "rated": true, "runs_vs_repl": 0.232, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.069, "d_win_pts": 0.7}}, {"slot": 2, "id": 518692, "name": "Freddie Freeman", "pa": 686, "woba": 0.354, "rated": true, "runs_vs_repl": 0.246, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.048, "d_win_pts": 0.5}}, {"slot": 3, "id": 669257, "name": "Will Smith", "pa": 295, "woba": 0.332, "rated": true, "runs_vs_repl": 0.17, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.119, "d_win_pts": 1.2}}, {"slot": 4, "id": 606192, "name": "Teoscar Hern\u00e1ndez", "pa": 519, "woba": 0.347, "rated": true, "runs_vs_repl": 0.211, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.072, "d_win_pts": 0.7}}, {"slot": 5, "id": 571771, "name": "Enrique Hern\u00e1ndez", "pa": 96, "woba": 0.292, "rated": true, "runs_vs_repl": 0.098, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.179, "d_win_pts": 1.8}}, {"slot": 6, "id": 663656, "name": "Kyle Tucker", "pa": 654, "woba": 0.331, "rated": true, "runs_vs_repl": 0.16, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.111, "d_win_pts": 1.1}}, {"slot": 7, "id": 571970, "name": "Max Muncy", "pa": 586, "woba": 0.371, "rated": true, "runs_vs_repl": 0.264, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.001, "d_win_pts": 0.0}}, {"slot": 8, "id": 669242, "name": "Tommy Edman", "pa": 337, "woba": 0.334, "rated": true, "runs_vs_repl": 0.158, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.101, "d_win_pts": 1.0}}, {"slot": 9, "id": 800543, "name": "Josue De Paula", "pa": 43, "woba": 0.455, "rated": true, "runs_vs_repl": 0.224, "sit": {"replacement": "Shohei Ohtani", "d_runs": 0.028, "d_win_pts": 0.3}}], "next_man_up": {"id": 660271, "name": "Shohei Ohtani", "woba": 0.36136432678033026, "raw_woba": 0.37962382445141063, "pa": 638}, "replacement_woba": 0.284, "league_woba": 0.324, "baseline_woba": 0.342, "lineup_woba": 0.352, "vs_baseline": 0.01, "lineup_runs_vs_repl": 1.76}, "lineup_source": "projected: the nine bats who started most of the last 10 games", "missing_regulars": [], "bullpen": {"relief_pitches_3d": 92, "games_3d": 1, "typical": 64, "taxed": true}, "injuries": [], "exp_runs": 4.19}}, "pen_d": -4}, {"game_pk": 849833, "start": "2026-10-07 20:00:00", "status": "Scheduled", "home": "Chicago White Sox", "away": "Cleveland Guardians", "p_home": 0.537, "p_home_prod": 0.541, "total_prod": 8.3, "polymarket": {"bid": 0.51, "ask": 0.52, "mid": 0.515}, "elo_d": 5, "lineup_d": 10, "call": {"level": "NO BET", "side": "home", "team": "Chicago White Sox", "prob": 0.537, "bid": 0.51, "ask": 0.52, "fee": 0.0125, "allin": 0.5325, "edge": 0.0043, "ev_pct": 0.8, "max_ask": 0.499, "stake_pct": 0.23, "why": "best side Chicago White Sox: EV +0.8% after fee (needs +5%)"}, "totals": {"exp_total": 8.27, "lines": [], "call": {"level": "NO BET", "why": "no liquid Polymarket totals line"}}, "first_inning": {"yrfi_prob": 0.458, "call": {"level": "NO BET", "why": "no liquid Polymarket first-inning market"}}, "env": {"venue": "Rate Field", "park_dev": -0.09, "umpire": null, "ump_dev": 0.0, "temp": null, "wind_mph": null, "wind_dir": null, "condition": null, "roof": "Open", "game_type": "D"}, "teams": {"home": {"abbr": "CHI", "name": "Chicago White Sox", "starter": {"id": 656794, "name": "Sean Newcomb", "status": "Probable", "prior": {"season": 2025, "pa": 409, "so9": 8.9, "bb9": 3.2, "hr9": 0.47, "fip": -0.22}, "current": {"season": 2026, "pa": 402, "so9": 8.6, "bb9": 3.9, "hr9": 0.67, "fip": 0.39}, "runs_vs_avg": 0.7, "imputed": false}, "lineup": {"players": [{"slot": 1, "id": 678246, "name": "Miguel Vargas", "pa": 744, "woba": 0.364, "rated": true, "runs_vs_repl": 0.284, "sit": {"replacement": "Sam Antonacci", "d_runs": -0.071, "d_win_pts": -0.7}}, {"slot": 2, "id": 545341, "name": "Randal Grichuk", "pa": 254, "woba": 0.389, "rated": true, "runs_vs_repl": 0.307, "sit": {"replacement": "Sam Antonacci", "d_runs": -0.098, "d_win_pts": -1.0}}, {"slot": 3, "id": 691019, "name": "Kyle Teel", "pa": 162, "woba": 0.322, "rated": true, "runs_vs_repl": 0.145, "sit": {"replacement": "Sam Antonacci", "d_runs": 0.059, "d_win_pts": 0.6}}, {"slot": 4, "id": 808959, "name": "Munetaka Murakami", "pa": 589, "woba": 0.353, "rated": true, "runs_vs_repl": 0.231, "sit": {"replacement": "Sam Antonacci", "d_runs": -0.031, "d_win_pts": -0.3}}, {"slot": 5, "id": 671976, "name": "Tristan Peters", "pa": 519, "woba": 0.343, "rated": true, "runs_vs_repl": 0.195, "sit": {"replacement": "Sam Antonacci", "d_runs": 0.001, "d_win_pts": 0.0}}, {"slot": 6, "id": 686668, "name": "Brenton Doyle", "pa": 100, "woba": 0.305, "rated": true, "runs_vs_repl": 0.113, "sit": {"replacement": "Sam Antonacci", "d_runs": 0.078, "d_win_pts": 0.8}}, {"slot": 7, "id": 805367, "name": "Chase Meidroth", "pa": 682, "woba": 0.352, "rated": true, "runs_vs_repl": 0.216, "sit": {"replacement": "Sam Antonacci", "d_runs": -0.029, "d_win_pts": -0.3}}, {"slot": 8, "id": 695731, "name": "Braden Montgomery", "pa": 380, "woba": 0.301, "rated": true, "runs_vs_repl": 0.078, "sit": {"replacement": "Sam Antonacci", "d_runs": 0.105, "d_win_pts": 1.0}}, {"slot": 9, "id": 695657, "name": "Colson Montgomery", "pa": 677, "woba": 0.302, "rated": true, "runs_vs_repl": 0.073, "sit": {"replacement": "Sam Antonacci", "d_runs": 0.105, "d_win_pts": 1.1}}], "next_man_up": {"id": 803011, "name": "Sam Antonacci", "woba": 0.3386681550586069, "raw_woba": 0.3528350515463917, "pa": 582}, "replacement_woba": 0.284, "league_woba": 0.324, "baseline_woba": 0.325, "lineup_woba": 0.337, "vs_baseline": 0.011, "lineup_runs_vs_repl": 1.64}, "lineup_source": "projected: the nine bats who started most of the last 10 games", "missing_regulars": [], "bullpen": {"relief_pitches_3d": 130, "games_3d": 1, "typical": 64, "taxed": true}, "injuries": [], "exp_runs": 4.28}, "away": {"abbr": "CLE", "name": "Cleveland Guardians", "starter": {"id": 682982, "name": "Daniel Espino", "status": "Probable", "prior": null, "current": null, "runs_vs_avg": null, "imputed": true}, "lineup": {"players": [{"slot": 1, "id": 680757, "name": "Steven Kwan", "pa": 670, "woba": 0.342, "rated": true, "runs_vs_repl": 0.212, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": -0.083, "d_win_pts": -0.8}}, {"slot": 2, "id": 608070, "name": "Jos\u00e9 Ram\u00edrez", "pa": 567, "woba": 0.323, "rated": true, "runs_vs_repl": 0.15, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": -0.025, "d_win_pts": -0.2}}, {"slot": 3, "id": 800050, "name": "Chase DeLauter", "pa": 587, "woba": 0.375, "rated": true, "runs_vs_repl": 0.3, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": -0.176, "d_win_pts": -1.8}}, {"slot": 4, "id": 666176, "name": "Jo Adell", "pa": 213, "woba": 0.34, "rated": true, "runs_vs_repl": 0.18, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": -0.06, "d_win_pts": -0.6}}, {"slot": 5, "id": 683953, "name": "Travis Bazzana", "pa": 538, "woba": 0.337, "rated": true, "runs_vs_repl": 0.18, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": -0.062, "d_win_pts": -0.6}}, {"slot": 6, "id": 663993, "name": "Nathaniel Lowe", "pa": 160, "woba": 0.296, "rated": true, "runs_vs_repl": 0.089, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": 0.027, "d_win_pts": 0.3}}, {"slot": 7, "id": 690984, "name": "Petey Halpin", "pa": 201, "woba": 0.266, "rated": true, "runs_vs_repl": 0.024, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": 0.089, "d_win_pts": 0.9}}, {"slot": 8, "id": 672275, "name": "Patrick Bailey", "pa": 261, "woba": 0.302, "rated": true, "runs_vs_repl": 0.088, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": 0.022, "d_win_pts": 0.2}}, {"slot": 9, "id": 677587, "name": "Brayan Rocchio", "pa": 611, "woba": 0.316, "rated": true, "runs_vs_repl": 0.109, "sit": {"replacement": "Angel Mart\u00ednez", "d_runs": -0.002, "d_win_pts": -0.0}}], "next_man_up": {"id": 682657, "name": "Angel Mart\u00ednez", "woba": 0.3168444830844336, "raw_woba": 0.3281179138321995, "pa": 441}, "replacement_woba": 0.284, "league_woba": 0.324, "baseline_woba": 0.32, "lineup_woba": 0.322, "vs_baseline": 0.002, "lineup_runs_vs_repl": 1.33}, "lineup_source": "projected: the nine bats who started most of the last 10 games", "missing_regulars": [], "bullpen": {"relief_pitches_3d": 49, "games_3d": 1, "typical": 64, "taxed": false}, "injuries": [], "exp_runs": 4.02}}, "pen_d": -81}, {"game_pk": 849838, "start": "2026-10-08 00:00:00", "status": "Scheduled", "home": "New York Yankees", "away": "Tampa Bay Rays", "p_home": 0.584, "p_home_prod": 0.588, "total_prod": 7.96, "polymarket": {"bid": 0.6, "ask": 0.61, "mid": 0.605}, "elo_d": 14, "lineup_d": -5, "call": {"level": "NO BET", "side": "away", "team": "Tampa Bay Rays", "prob": 0.416, "bid": 0.39, "ask": 0.4, "fee": 0.012, "allin": 0.412, "edge": 0.0038, "ev_pct": 0.9, "max_ask": 0.384, "stake_pct": 0.16, "why": "best side Tampa Bay Rays: EV +0.9% after fee (needs +5%)"}, "totals": {"exp_total": 8.48, "lines": [{"line": 8.5, "volume": 5280, "model_over": 0.445, "over": {"prob": 0.445, "bid": 0.38, "ask": 0.39, "fee": 0.0119, "allin": 0.4019, "edge": 0.043, "ev_pct": 10.7, "max_ask": 0.412, "stake_pct": 1.8}, "under": {"prob": 0.555, "bid": 0.61, "ask": 0.62, "fee": 0.0118, "allin": 0.6318, "edge": -0.0767, "ev_pct": -12.1, "max_ask": 0.516, "stake_pct": 0.0}}, {"line": 7.5, "volume": 4985, "model_over": 0.538, "over": {"prob": 0.538, "bid": 0.46, "ask": 0.47, "fee": 0.0125, "allin": 0.4825, "edge": 0.0558, "ev_pct": 11.6, "max_ask": 0.5, "stake_pct": 2.69}, "under": {"prob": 0.462, "bid": 0.53, "ask": 0.54, "fee": 0.0124, "allin": 0.5524, "edge": -0.0907, "ev_pct": -16.4, "max_ask": 0.428, "stake_pct": 0.0}}], "call": {"level": "LEAN", "side": "over", "line": 7.5, "prob": 0.538, "bid": 0.46, "ask": 0.47, "fee": 0.0125, "allin": 0.4825, "edge": 0.0558, "ev_pct": 11.6, "max_ask": 0.5, "stake_pct": 2.69}}, "first_inning": {"yrfi_prob": 0.413, "call": {"level": "NO BET", "why": "no liquid Polymarket first-inning market"}}, "env": {"venue": "Yankee Stadium", "park_dev": 0.11, "umpire": null, "ump_dev": 0.0, "temp": null, "wind_mph": null, "wind_dir": null, "condition": null, "roof": "Open", "game_type": "D"}, "teams": {"home": {"abbr": "NEW", "name": "New York Yankees", "starter": {"id": 608331, "name": "Max Fried", "status": "Probable", "prior": {"season": 2025, "pa": 881, "so9": 8.9, "bb9": 3.0, "hr9": 0.7, "fip": 0.04}, "current": {"season": 2026, "pa": 478, "so9": 9.1, "bb9": 3.2, "hr9": 0.49, "fip": -0.23}, "runs_vs_avg": 0.54, "imputed": false}, "lineup": {"players": [{"slot": 1, "id": 700250, "name": "Ben Rice", "pa": 706, "woba": 0.392, "rated": true, "runs_vs_repl": 0.374, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": -0.29, "d_win_pts": -2.9}}, {"slot": 2, "id": 641355, "name": "Cody Bellinger", "pa": 595, "woba": 0.334, "rated": true, "runs_vs_repl": 0.182, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": -0.1, "d_win_pts": -1.0}}, {"slot": 3, "id": 671218, "name": "Heliot Ramos", "pa": 139, "woba": 0.297, "rated": true, "runs_vs_repl": 0.101, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": -0.02, "d_win_pts": -0.2}}, {"slot": 4, "id": 671277, "name": "Luis Garc\u00eda Jr.", "pa": 182, "woba": 0.322, "rated": true, "runs_vs_repl": 0.142, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": -0.063, "d_win_pts": -0.6}}, {"slot": 5, "id": 682987, "name": "Spencer Jones", "pa": 311, "woba": 0.332, "rated": true, "runs_vs_repl": 0.163, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": -0.085, "d_win_pts": -0.8}}, {"slot": 6, "id": 806146, "name": "George Lombard Jr.", "pa": 182, "woba": 0.295, "rated": true, "runs_vs_repl": 0.085, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": -0.009, "d_win_pts": -0.1}}, {"slot": 7, "id": 683011, "name": "Anthony Volpe", "pa": 250, "woba": 0.301, "rated": true, "runs_vs_repl": 0.088, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": -0.013, "d_win_pts": -0.1}}, {"slot": 8, "id": 676609, "name": "Jos\u00e9 Caballero", "pa": 473, "woba": 0.29, "rated": true, "runs_vs_repl": 0.049, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": 0.024, "d_win_pts": 0.2}}, {"slot": 9, "id": 669224, "name": "Austin Wells", "pa": 414, "woba": 0.283, "rated": true, "runs_vs_repl": 0.033, "sit": {"replacement": "Jazz Chisholm Jr.", "d_runs": 0.038, "d_win_pts": 0.4}}], "next_man_up": {"id": 665862, "name": "Jazz Chisholm Jr.", "woba": 0.30548467626811837, "raw_woba": 0.31129893238434164, "pa": 562}, "replacement_woba": 0.284, "league_woba": 0.324, "baseline_woba": 0.32, "lineup_woba": 0.316, "vs_baseline": -0.003, "lineup_runs_vs_repl": 1.22}, "lineup_source": "projected: the nine bats who started most of the last 10 games", "missing_regulars": [], "bullpen": {"relief_pitches_3d": 61, "games_3d": 1, "typical": 64, "taxed": false}, "injuries": [], "exp_runs": 4.19}, "away": {"abbr": "TAM", "name": "Tampa Bay Rays", "starter": {"id": 607259, "name": "Nick Martinez", "status": "Probable", "prior": {"season": 2025, "pa": 707, "so9": 6.7, "bb9": 2.7, "hr9": 1.2, "fip": 1.17}, "current": {"season": 2026, "pa": 769, "so9": 5.5, "bb9": 1.6, "hr9": 1.31, "fip": 1.2}, "runs_vs_avg": -0.15, "imputed": false}, "lineup": {"players": [{"slot": 1, "id": 650490, "name": "Yandy D\u00edaz", "pa": 719, "woba": 0.362, "rated": true, "runs_vs_repl": 0.278, "sit": {"replacement": "Cedric Mullins", "d_runs": -0.252, "d_win_pts": -2.5}}, {"slot": 2, "id": 666018, "name": "Jonathan Aranda", "pa": 696, "woba": 0.35, "rated": true, "runs_vs_repl": 0.233, "sit": {"replacement": "Cedric Mullins", "d_runs": -0.207, "d_win_pts": -2.1}}, {"slot": 3, "id": 691406, "name": "Junior Caminero", "pa": 728, "woba": 0.376, "rated": true, "runs_vs_repl": 0.309, "sit": {"replacement": "Cedric Mullins", "d_runs": -0.284, "d_win_pts": -2.8}}, {"slot": 4, "id": 689414, "name": "Liam Hicks", "pa": 153, "woba": 0.357, "rated": true, "runs_vs_repl": 0.207, "sit": {"replacement": "Cedric Mullins", "d_runs": -0.182, "d_win_pts": -1.8}}, {"slot": 5, "id": 802415, "name": "Chandler Simpson", "pa": 640, "woba": 0.321, "rated": true, "runs_vs_repl": 0.134, "sit": {"replacement": "Cedric Mullins", "d_runs": -0.11, "d_win_pts": -1.1}}, {"slot": 6, "id": 676356, "name": "Jonny DeLuca", "pa": 393, "woba": 0.327, "rated": true, "runs_vs_repl": 0.148, "sit": {"replacement": "Cedric Mullins", "d_runs": -0.125, "d_win_pts": -1.2}}, {"slot": 7, "id": 683748, "name": "Victor Mesa Jr.", "pa": 269, "woba": 0.349, "rated": true, "runs_vs_repl": 0.193, "sit": {"replacement": "Cedric Mullins", "d_runs": -0.17, "d_win_pts": -1.7}}, {"slot": 8, "id": 680700, "name": "Richie Palacios", "pa": 416, "woba": 0.311, "rated": true, "runs_vs_repl": 0.102, "sit": {"replacement": "Cedric Mullins", "d_runs": -0.08, "d_win_pts": -0.8}}, {"slot": 9, "id": 622761, "name": "Jorge Mateo", "pa": 84, "woba": 0.175, "rated": true, "runs_vs_repl": -0.043, "sit": {"replacement": "Cedric Mullins", "d_runs": 0.065, "d_win_pts": 0.7}}], "next_man_up": {"id": 656775, "name": "Cedric Mullins", "woba": 0.2904093593793159, "raw_woba": 0.29233716475095783, "pa": 522}, "replacement_woba": 0.284, "league_woba": 0.324, "baseline_woba": 0.326, "lineup_woba": 0.325, "vs_baseline": -0.001, "lineup_runs_vs_repl": 1.56}, "lineup_source": "projected: the nine bats who started most of the last 10 games", "missing_regulars": [], "bullpen": {"relief_pitches_3d": 58, "games_3d": 1, "typical": 64, "taxed": false}, "injuries": [], "exp_runs": 3.76}}, "pen_d": -3}, {"game_pk": 849827, "start": "2026-10-08 02:00:00", "status": "Scheduled", "home": "San Diego Padres", "away": "Milwaukee Brewers", "p_home": 0.509, "p_home_prod": 0.496, "total_prod": 8.04, "polymarket": {"bid": 0.44999999999999996, "ask": 0.5800000000000001, "mid": 0.515}, "elo_d": -37, "lineup_d": -9, "call": {"level": "NO BET", "side": "away", "team": "Milwaukee Brewers", "prob": 0.491, "bid": 0.41999999999999993, "ask": 0.55, "fee": 0.0124, "allin": 0.5624, "edge": -0.0719, "ev_pct": -12.8, "max_ask": 0.455, "stake_pct": 0.0, "why": "best side Milwaukee Brewers: EV -12.8% after fee (needs +5%)"}, "totals": {"exp_total": 8.84, "lines": [], "call": {"level": "NO BET", "why": "no liquid Polymarket totals line"}}, "first_inning": {"yrfi_prob": 0.504, "call": {"level": "NO BET", "why": "no liquid Polymarket first-inning market"}}, "env": {"venue": "Petco Park", "park_dev": -0.52, "umpire": null, "ump_dev": 0.0, "temp": null, "wind_mph": null, "wind_dir": null, "condition": null, "roof": "Open", "game_type": "D"}, "teams": {"home": {"abbr": "SAN", "name": "San Diego Padres", "starter": {"id": null, "name": "TBD", "status": "Probable", "prior": null, "current": null, "runs_vs_avg": null, "imputed": true}, "lineup": {"players": [{"slot": 1, "id": 665487, "name": "Fernando Tatis Jr.", "pa": 732, "woba": 0.369, "rated": true, "runs_vs_repl": 0.301, "sit": {"replacement": "Gavin Sheets", "d_runs": -0.179, "d_win_pts": -1.8}}, {"slot": 2, "id": 592518, "name": "Manny Machado", "pa": 705, "woba": 0.32, "rated": true, "runs_vs_repl": 0.141, "sit": {"replacement": "Gavin Sheets", "d_runs": -0.022, "d_win_pts": -0.2}}, {"slot": 3, "id": 687749, "name": "Jase Bowen", "pa": 116, "woba": 0.217, "rated": true, "runs_vs_repl": -0.025, "sit": {"replacement": "Gavin Sheets", "d_runs": 0.141, "d_win_pts": 1.4}}, {"slot": 4, "id": 664034, "name": "Ty France", "pa": 538, "woba": 0.381, "rated": true, "runs_vs_repl": 0.308, "sit": {"replacement": "Gavin Sheets", "d_runs": -0.194, "d_win_pts": -1.9}}, {"slot": 5, "id": 701538, "name": "Jackson Merrill", "pa": 700, "woba": 0.324, "rated": true, "runs_vs_repl": 0.143, "sit": {"replacement": "Gavin Sheets", "d_runs": -0.031, "d_win_pts": -0.3}}, {"slot": 6, "id": 593428, "name": "Xander Bogaerts", "pa": 639, "woba": 0.322, "rated": true, "runs_vs_repl": 0.134, "sit": {"replacement": "Gavin Sheets", "d_runs": -0.025, "d_win_pts": -0.2}}, {"slot": 7, "id": 669392, "name": "Samad Taylor", "pa": 180, "woba": 0.358, "rated": true, "runs_vs_repl": 0.2, "sit": {"replacement": "Gavin Sheets", "d_runs": -0.092, "d_win_pts": -0.9}}, {"slot": 8, "id": 666023, "name": "Freddy Fermin", "pa": 281, "woba": 0.279, "rated": true, "runs_vs_repl": 0.035, "sit": {"replacement": "Gavin Sheets", "d_runs": 0.069, "d_win_pts": 0.7}}, {"slot": 9, "id": 630105, "name": "Jake Cronenworth", "pa": 459, "woba": 0.291, "rated": true, "runs_vs_repl": 0.049, "sit": {"replacement": "Gavin Sheets", "d_runs": 0.053, "d_win_pts": 0.5}}], "next_man_up": {"id": 657757, "name": "Gavin Sheets", "woba": 0.31515243570710705, "raw_woba": 0.3258503401360544, "pa": 441}, "replacement_woba": 0.284, "league_woba": 0.324, "baseline_woba": 0.324, "lineup_woba": 0.318, "vs_baseline": -0.006, "lineup_runs_vs_repl": 1.29}, "lineup_source": "projected: the nine bats who started most of the last 10 games", "missing_regulars": [], "bullpen": {"relief_pitches_3d": 80, "games_3d": 1, "typical": 64, "taxed": true}, "injuries": [], "exp_runs": 4.22}, "away": {"abbr": "MIL", "name": "Milwaukee Brewers", "starter": {"id": null, "name": "TBD", "status": "Probable", "prior": null, "current": null, "runs_vs_avg": null, "imputed": true}, "lineup": {"players": [{"slot": 1, "id": 694192, "name": "Jackson Chourio", "pa": 595, "woba": 0.366, "rated": true, "runs_vs_repl": 0.287, "sit": {"replacement": "David Hamilton", "d_runs": -0.212, "d_win_pts": -2.1}}, {"slot": 2, "id": 668930, "name": "Brice Turang", "pa": 703, "woba": 0.361, "rated": true, "runs_vs_repl": 0.268, "sit": {"replacement": "David Hamilton", "d_runs": -0.195, "d_win_pts": -1.9}}, {"slot": 3, "id": 641343, "name": "Jake Bauers", "pa": 605, "woba": 0.39, "rated": true, "runs_vs_repl": 0.346, "sit": {"replacement": "David Hamilton", "d_runs": -0.275, "d_win_pts": -2.7}}, {"slot": 4, "id": 661388, "name": "William Contreras", "pa": 661, "woba": 0.351, "rated": true, "runs_vs_repl": 0.226, "sit": {"replacement": "David Hamilton", "d_runs": -0.156, "d_win_pts": -1.6}}, {"slot": 5, "id": 669003, "name": "Garrett Mitchell", "pa": 563, "woba": 0.335, "rated": true, "runs_vs_repl": 0.175, "sit": {"replacement": "David Hamilton", "d_runs": -0.107, "d_win_pts": -1.1}}, {"slot": 6, "id": 592885, "name": "Christian Yelich", "pa": 529, "woba": 0.303, "rated": true, "runs_vs_repl": 0.084, "sit": {"replacement": "David Hamilton", "d_runs": -0.017, "d_win_pts": -0.2}}, {"slot": 7, "id": 800325, "name": "Luis Lara", "pa": 226, "woba": 0.285, "rated": true, "runs_vs_repl": 0.056, "sit": {"replacement": "David Hamilton", "d_runs": 0.009, "d_win_pts": 0.1}}, {"slot": 8, "id": 687401, "name": "Joey Ortiz", "pa": 439, "woba": 0.327, "rated": true, "runs_vs_repl": 0.14, "sit": {"replacement": "David Hamilton", "d_runs": -0.077, "d_win_pts": -0.8}}, {"slot": 9, "id": 806198, "name": "Cooper Pratt", "pa": 285, "woba": 0.33, "rated": true, "runs_vs_repl": 0.143, "sit": {"replacement": "David Hamilton", "d_runs": -0.081, "d_win_pts": -0.8}}], "next_man_up": {"id": 666152, "name": "David Hamilton", "woba": 0.30287650448548437, "raw_woba": 0.3099264705882353, "pa": 408}, "replacement_woba": 0.284, "league_woba": 0.324, "baseline_woba": 0.337, "lineup_woba": 0.339, "vs_baseline": 0.002, "lineup_runs_vs_repl": 1.72}, "lineup_source": "projected: the nine bats who started most of the last 10 games", "missing_regulars": [], "bullpen": {"relief_pitches_3d": 62, "games_3d": 1, "typical": 64, "taxed": false}, "injuries": [], "exp_runs": 3.82}}, "pen_d": -18}]}</script>
+<script>
+(function () {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ct = (iso) => { const d = new Date(iso.includes("T") ? iso : iso.replace(" ", "T") + "Z"); return isNaN(d) ? "" : d.toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" }); };
+  const pct = (p) => (p * 100).toFixed(1) + "%";
+  const c100 = (x) => (x * 100).toFixed(1) + "¢";
+  const sgn = (x, d = 2) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(d);
+  const day = new Date(D.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  $("title").textContent = "Slate · " + day;
+  $("minev").textContent = D.min_ev_pct;
+  $("meta").innerHTML = [
+    `<span>${D.games.length} games</span>`,
+    `<span>Win model <span class="num">${esc(D.model.ml.id)}</span> (${esc(D.model.ml.blocks.join(", "))})</span>`,
+    `<span>Totals model <span class="num">${esc(D.model.totals.id)}</span> (${esc(D.model.totals.blocks.join(", "))})</span>`,
+    `<span>Built ${new Date(D.generated).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} CT</span>`
+  ].join("");
+
+  const games = D.games.slice().sort((a, b) => a.start.localeCompare(b.start));
+  const isLean = (c) => c && c.level === "LEAN";
+  const pillFor = (c, text) => `<span class="pill ${isLean(c) ? "lean" : "none"}">${esc(text)}</span>`;
+  const winText = (c) => isLean(c) ? `Lean ${c.team}` : "No bet";
+  const totText = (t) => isLean(t.call) ? `Lean ${t.call.side} ${t.call.line}` : "No bet";
+  const fiText = (f) => isLean(f.call) ? `Lean ${f.call.side.toUpperCase()}` : "No bet";
+
+  function evTerms(c, label) {
+    return `<div class="terms">
+      <span>Model <b>${pct(c.prob)}</b></span>
+      <span>Polymarket ask <b>${c100(c.ask)}</b> + fee ${c100(c.fee)} = <b>${c100(c.allin)}</b></span>
+      <span>Edge after costs <b>${sgn(c.edge * 100, 1)}¢</b></span>
+      <span>EV <b>${sgn(c.ev_pct, 1)}%</b></span>
+      <span>Max ask for +${D.min_ev_pct}% EV <b>${c100(c.max_ask)}</b></span>
+      <span>Quarter-Kelly <b>${c.stake_pct}%</b> of bankroll</span></div>`;
+  }
+  function verdict(g) {
+    const c = g.call;
+    if (isLean(c)) return `<div class="verdict lean"><div><span class="pill lean">Model lean &middot; not a recommended bet</span></div>
+      <div class="big">${esc(c.team)} to win</div>${evTerms(c)}
+      <div class="small">Lean = the model beats Polymarket's all-in price by enough for +${D.min_ev_pct}% EV. No MLB betting rule has proven itself on live paper bets yet, so this is not a recommendation.</div></div>`;
+    return `<div class="verdict"><div><span class="pill none">Winner: no bet</span></div><div class="small">${esc(c.why)}.</div></div>`;
+  }
+  function totVerdict(g) {
+    const t = g.totals, c = t.call;
+    const lines = t.lines.slice(0, 3).map((l) => `<span>Polymarket ${l.line}: over ${l.over ? c100(l.over.ask) : "—"} / under ${l.under ? c100(l.under.ask) : "—"} (model over ${pct(l.model_over)}, $${l.volume} traded)</span>`).join("");
+    const facts = `<div class="terms"><span>Model expects <b>${t.exp_total.toFixed(2)}</b> runs</span><span>Production model <b>${g.total_prod.toFixed(2)}</b></span>${lines}</div>`;
+    if (isLean(c)) return `<div class="verdict lean"><div><span class="pill lean">Totals lean &middot; not a recommended bet</span></div>
+      <div class="big">${esc(c.side === "over" ? "Over" : "Under")} ${c.line}</div>${evTerms(c)}${facts}</div>`;
+    return `<div class="verdict"><div><span class="pill none">Totals: no bet</span></div><div class="small">${esc(c.why)}.</div>${facts}</div>`;
+  }
+  function fiVerdict(g) {
+    const f = g.first_inning, c = f.call;
+    const facts = `<div class="terms"><span>Model: run scores in the 1st <b>${pct(f.yrfi_prob)}</b> (YRFI) &middot; no run <b>${pct(1 - f.yrfi_prob)}</b> (NRFI)</span>${f.volume ? `<span>$${f.volume} traded</span>` : ""}</div>`;
+    if (isLean(c)) return `<div class="verdict lean"><div><span class="pill lean">1st-inning lean &middot; not a recommended bet</span></div>
+      <div class="big">${esc(c.side.toUpperCase())}</div>${evTerms(c)}${facts}</div>`;
+    return `<div class="verdict"><div><span class="pill none">1st inning: no bet</span></div><div class="small">${esc(c.why)}.</div>${facts}</div>`;
+  }
+
+  $("rows").innerHTML = games.map((g) => {
+    const h = g.teams.home, a = g.teams.away, pm = g.polymarket;
+    const gap = pm ? (g.p_home - pm.mid) * 100 : null;
+    const absent = [...a.missing_regulars.map((m) => `${a.abbr} ${m.name}`), ...h.missing_regulars.map((m) => `${h.abbr} ${m.name}`)];
+    return `<tr>
+      <td>${pillFor(g.call, winText(g.call))}</td>
+      <td>${pillFor(g.totals.call, totText(g.totals))}<div class="label" style="text-transform:none;letter-spacing:0;margin-top:3px">model ${g.totals.exp_total.toFixed(2)} runs</div></td>
+      <td>${pillFor(g.first_inning.call, fiText(g.first_inning))}</td>
+      <td class="match"><a href="#g${g.game_pk}">${esc(a.abbr)} @ ${esc(h.abbr)}</a></td>
+      <td class="num">${ct(g.start)}${g.status && !["Scheduled","Pre-Game","Warmup"].includes(g.status) ? `<div class="label">${esc(g.status)}</div>` : ""}</td>
+      <td><div class="pbar" title="Model ${pct(g.p_home)} home; tick = Polymarket"><div class="home" style="width:${(g.p_home * 100).toFixed(1)}%"></div>${pm ? `<div class="tick" style="right:calc(${(pm.mid * 100).toFixed(1)}% - 1px)"></div>` : ""}</div></td>
+      <td class="r num">${pct(g.p_home)}</td>
+      <td class="r num">${pm ? `${(pm.bid * 100).toFixed(0)}–${(pm.ask * 100).toFixed(0)}¢` : "—"}</td>
+      <td class="r num"><span class="gap ${gap !== null && Math.abs(gap) >= 4 ? "big" : ""}">${gap === null ? "—" : sgn(gap, 1) + "¢"}</span></td>
+      <td style="font-size:.88rem">${esc(a.starter.name)}<br>${esc(h.starter.name)}</td>
+      <td>${absent.length ? absent.map((x) => `<span class="chip">${esc(x)}</span>`).join("") : '<span class="chip soft">none</span>'}</td>
+    </tr>`;
+  }).join("");
+
+  const SCALE = 0.4;   // runs/game at a full half-bar
+  function bar(v) {
+    const w = Math.min(Math.abs(v) / SCALE, 1) * 50, left = v >= 0 ? 50 : 50 - w;
+    return `<div class="bar" aria-hidden="true"><i style="left:${left}%;width:${w}%;background:var(${v >= 0 ? "--pos" : "--neg"})"></i></div>`;
+  }
+  function starter(s) {
+    const pr = s.prior, cu = s.current;
+    const line = (x) => x ? `${x.so9} K/9, ${x.bb9} BB/9, ${x.hr9} HR/9` : "";
+    const rv = s.runs_vs_avg;
+    return `<div class="sp">Starter: <b>${esc(s.name)}</b> <span class="st">(${esc(s.status.toLowerCase())})</span><br>
+      <span class="st">${pr ? `${pr.season}: ${line(pr)} &middot; ${pr.pa} BF` : (cu ? `no ${cu.season - 1} qualifying sample` : "no qualifying Statcast sample")}${cu ? ` &middot; ${cu.season}: ${line(cu)}` : ""}</span>
+      ${rv !== null ? `<br><span class="st">${sgn(rv)} runs/game vs a league-average starter</span>` : ""}
+      ${s.imputed ? `<br><span class="chip warn">model treats him as league-average (no qualifying prior season)</span>` : ""}</div>`;
+  }
+  function side(t, label) {
+    const L = t.lineup, bp = t.bullpen;
+    const rows = L ? L.players.map((p) => `
+      <div class="prow" title="${esc(p.name)}: ${p.pa} PA, wOBA ${p.woba ?? "n/a"}. If he sits: ${esc(p.sit.replacement)} takes his spot (${sgn(p.sit.d_runs, 2)} runs/game).">
+        <span class="slot">${p.slot}</span><span class="nm ${p.rated ? "" : "unrated"}">${esc(p.name)}</span>
+        <span class="woba">${p.woba === null ? "—" : p.woba.toFixed(3).slice(1)}</span>${bar(p.runs_vs_repl)}
+        <span class="val">${sgn(p.runs_vs_repl)}</span><span class="sit">${sgn(p.sit.d_win_pts, 1)}</span></div>`).join("") : '<div class="strength">Lineup not available.</div>';
+    return `<div class="side">
+      <div class="side-head"><h3>${esc(label)} &middot; ${esc(t.abbr)}</h3><span class="label">exp. runs ${t.exp_runs.toFixed(2)}</span></div>
+      ${starter(t.starter)}
+      ${L ? `<div class="strength">Lineup wOBA <b>${L.lineup_woba === null ? "—" : L.lineup_woba.toFixed(3)}</b> &middot; team <b>${L.baseline_woba === null ? "—" : L.baseline_woba.toFixed(3)}</b> &middot; vs usual <b style="color:var(${L.vs_baseline !== null && L.vs_baseline < -0.004 ? "--red" : "--ink"})">${L.vs_baseline === null ? "—" : (L.vs_baseline >= 0 ? "+" : "−") + Math.abs(L.vs_baseline * 1000).toFixed(0)} pts</b> &middot; ${sgn(L.lineup_runs_vs_repl)} runs/game over replacement</div>
+      <div class="strength">If a hitter sits, ${esc(L.next_man_up.name)} fills in (${L.next_man_up.id ? L.next_man_up.woba.toFixed(3).slice(1) + " wOBA, regressed" : "replacement level"})</div>` : ""}
+      ${t.missing_regulars.length ? `<div class="outs"><span class="label" style="align-self:center">Regulars not starting</span>${t.missing_regulars.map((m) => `<span class="chip">${esc(m.name)}${m.active ? "" : " · off roster"}</span>`).join("")}</div>` : ""}
+      <div>${rows}</div>
+      <div class="prow label" style="margin-top:2px"><span></span><span></span><span class="woba">wOBA</span><span style="text-align:center">runs vs repl</span><span class="val" style="color:var(--muted)">runs</span><span class="sit">if sits</span></div>
+      <div class="strength">Bullpen, last 3 days: <b>${bp.relief_pitches_3d}</b> relief pitches (typical ${bp.typical}) ${bp.taxed ? '<span class="chip warn">taxed</span>' : ""}</div>
+      ${t.injuries.length ? `<div class="outs"><span class="label" style="align-self:center">Recent IL moves</span>${t.injuries.map((n) => `<span class="chip soft">${esc(n.length > 70 ? n.slice(0, 68) + "…" : n)}</span>`).join("")}</div>` : ""}
+      <div class="label" style="text-transform:none;letter-spacing:0">Lineup source: ${esc(t.lineup_source)}</div>
+    </div>`;
+  }
+
+  const wl = games.filter((g) => isLean(g.call)), tl = games.filter((g) => isLean(g.totals.call)), fl = games.filter((g) => isLean(g.first_inning.call));
+  const cb = $("callbox");
+  cb.classList.toggle("has", wl.length + tl.length + fl.length > 0);
+  cb.innerHTML = `<div class="label">Today's calls</div>
+    <div class="tally">
+      <div><b style="color:var(${wl.length ? "--lean" : "--muted"})">${wl.length}</b> winner leans</div>
+      <div><b style="color:var(${tl.length ? "--lean" : "--muted"})">${tl.length}</b> totals leans</div>
+      <div><b style="color:var(${fl.length ? "--lean" : "--muted"})">${fl.length}</b> 1st-inning leans</div>
+    </div>
+    ${wl.length + tl.length + fl.length === 0 ? `<div style="font-weight:600">No leans right now. Nothing clears +${D.min_ev_pct}% expected value after Polymarket's fee.</div>` : ""}
+    <ul class="leanlist">
+      ${wl.map((g) => `<li><span class="pill lean">Lean</span> <a href="#g${g.game_pk}">${esc(g.call.team)}</a> to win: model ${pct(g.call.prob)}, Polymarket ${c100(g.call.allin)} all-in, EV ${sgn(g.call.ev_pct, 1)}%, max ask ${c100(g.call.max_ask)}</li>`).join("")}
+      ${tl.map((g) => `<li><span class="pill lean">Lean</span> <a href="#g${g.game_pk}">${esc(g.away)} @ ${esc(g.home)} ${esc(g.totals.call.side)} ${g.totals.call.line}</a>: model ${pct(g.totals.call.prob)}, ${c100(g.totals.call.allin)} all-in, EV ${sgn(g.totals.call.ev_pct, 1)}%</li>`).join("")}
+      ${fl.map((g) => `<li><span class="pill lean">Lean</span> <a href="#g${g.game_pk}">${esc(g.away)} @ ${esc(g.home)} ${esc(g.first_inning.call.side.toUpperCase())}</a>: model ${pct(g.first_inning.call.prob)}, ${c100(g.first_inning.call.allin)} all-in, EV ${sgn(g.first_inning.call.ev_pct, 1)}%</li>`).join("")}
+    </ul>`;
+
+  $("games").innerHTML = games.map((g) => {
+    const h = g.teams.home, a = g.teams.away, pm = g.polymarket, e = g.env;
+    const wind = e.wind_mph != null ? `${e.wind_mph} mph ${esc(e.wind_dir || "")}` : "wind n/a";
+    return `<article class="game" id="g${g.game_pk}">
+      <div class="game-head">
+        <h2>${esc(a.abbr)} @ ${esc(h.abbr)} <span class="label" style="font-family:var(--body)">${ct(g.start)} CT${e.game_type && e.game_type !== "R" ? " · postseason" : ""}</span></h2>
+        <div class="facts">
+          <div class="fact"><span class="label">Model, ${esc(h.abbr)} win</span><b>${pct(g.p_home)}</b></div>
+          <div class="fact"><span class="label">Polymarket</span><b>${pm ? (pm.mid * 100).toFixed(1) + "¢" : "—"}</b></div>
+          <div class="fact"><span class="label">Production model</span><b>${pct(g.p_home_prod)}</b></div>
+          <div class="fact"><span class="label">Lineup edge, ${esc(h.abbr)}</span><b>${g.lineup_d >= 0 ? "+" : "−"}${Math.abs(g.lineup_d)} pts</b></div>
+          <div class="fact"><span class="label">Elo edge, ${esc(h.abbr)}</span><b>${g.elo_d >= 0 ? "+" : "−"}${Math.abs(g.elo_d)}</b></div>
+          <div class="fact"><span class="label">Bullpen load edge, ${esc(h.abbr)}</span><b>${g.pen_d >= 0 ? "+" : "−"}${Math.abs(g.pen_d)}</b></div>
+        </div>
+      </div>
+      <div class="envline"><span>${esc(e.venue)} (park ${sgn(e.park_dev)} runs vs avg)</span>
+        <span>HP umpire <b>${esc(e.umpire || "TBD")}</b>${e.umpire ? ` (${sgn(e.ump_dev)} runs/game vs avg)` : ""}</span>
+        <span>${e.roof && e.roof !== "Open" ? esc(e.roof) + " · " : ""}${e.temp != null ? e.temp + "°F" : ""} ${esc(e.condition || "")} &middot; ${wind}</span></div>
+      ${verdict(g)}${totVerdict(g)}${fiVerdict(g)}
+      <div class="sides">${side(a, "Away")}${side(h, "Home")}</div>
+    </article>`;
+  }).join("");
+
+  const R = D.record;
+  $("foot").innerHTML = `<div>Paper only: no real bets are placed here and nothing on this page is betting advice.</div>
+    <div>Live paper record of the older production model (reference bankroll, since 2026-07-29): ${R.n} bets, ROI ${R.roi_pct === null ? "n/a" : sgn(R.roi_pct, 2) + "%"}, average closing-line value ${R.clv_pct === null ? "n/a" : sgn(R.clv_pct, 2) + "%"}. That record prices bets at the ask without Polymarket's taker fee.</div>
+    <div>Data: MLB Stats API (schedule, lineups, umpires, weather, box scores), Baseball Savant / Statcast, Polymarket prices. Replacement level, plate appearances per slot and 10-runs-per-win are standard conventions, not fit to this model's data.</div>`;
+})();
+</script>
