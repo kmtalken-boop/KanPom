@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KanPom Bot Arena</title>
+<meta name="description" content="Every KanPom paper-trading bot as a video-game character: live HP, levels, squads and an honest battle log.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: arena stage (canvas + DOM tags/bubbles) on top, then a scoreboard strip,
+   one HUD card per bot, and the leaderboard + battle log. Game UI is dark by design. */
+:root {
+  --void: #05061a; --deep: #0b0d26; --panel: rgba(17, 19, 48, .86); --panel-solid: #11132f;
+  --line: rgba(110, 120, 255, .22); --line-hot: rgba(62, 240, 255, .55);
+  --ink: #e9ecff; --muted: #9097c4; --dim: #5d6392;
+  --cyan: #3ef0ff; --magenta: #ff3ea5; --lime: #7dff6a; --gold: #ffd23e; --red: #ff4d5e; --violet: #9b7bff;
+  --pixel: "Press Start 2P", ui-monospace, monospace;
+  --body: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--void); }
+body {
+  margin: 0; background: var(--void); color: var(--ink); font: 15px/1.5 var(--body);
+  background-image:
+    radial-gradient(1200px 500px at 50% -10%, rgba(155, 123, 255, .18), transparent 70%),
+    radial-gradient(800px 400px at 100% 30%, rgba(255, 62, 165, .08), transparent 70%);
+  min-height: 100vh;
+}
+a { color: var(--cyan); }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 18px 16px 56px; display: grid; gap: 22px; }
+
+/* ---------- header ---------- */
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: grid; gap: 6px; }
+.brand h1 { margin: 0; font: 400 clamp(1.05rem, 3.2vw, 1.7rem)/1.25 var(--pixel); letter-spacing: .02em;
+  background: linear-gradient(90deg, var(--cyan), var(--violet) 55%, var(--magenta)); -webkit-background-clip: text;
+  background-clip: text; color: transparent; filter: drop-shadow(0 0 12px rgba(62, 240, 255, .35)); }
+.brand .sub { color: var(--muted); font-size: .9rem; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; }
+nav a { font: 600 .8rem/1 var(--body); text-decoration: none; color: var(--muted); padding: 7px 11px; border: 1px solid var(--line);
+  border-radius: 999px; background: rgba(255, 255, 255, .02); transition: color .15s, border-color .15s; }
+nav a:hover { color: var(--ink); border-color: var(--line-hot); }
+nav a.on { color: var(--void); background: var(--cyan); border-color: var(--cyan); }
+.paperbadge { font: 400 .58rem/1 var(--pixel); color: var(--gold); border: 1px solid rgba(255, 210, 62, .5); padding: 6px 8px;
+  border-radius: 4px; background: rgba(255, 210, 62, .07); white-space: nowrap; }
+
+/* ---------- stage ---------- */
+.stage { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line-hot);
+  box-shadow: 0 0 0 1px rgba(62, 240, 255, .08), 0 0 40px rgba(62, 240, 255, .12), inset 0 0 60px rgba(0, 0, 0, .5);
+  height: 470px; background: #070820; touch-action: manipulation; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; cursor: default; }
+.overlay { position: absolute; inset: 0; pointer-events: none; }
+.scan { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay; opacity: .35;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .35) 0 1px, transparent 1px 3px); }
+.hud-corner { position: absolute; top: 12px; left: 14px; font: 400 .55rem/1.6 var(--pixel); color: var(--cyan);
+  text-shadow: 0 0 8px rgba(62, 240, 255, .6); pointer-events: none; }
+.hud-corner b { color: var(--gold); font-weight: 400; }
+.hud-right { left: auto; right: 14px; text-align: right; color: var(--magenta); text-shadow: 0 0 8px rgba(255, 62, 165, .6); }
+.tag { position: absolute; transform: translate(-50%, -100%); display: grid; justify-items: center; gap: 3px;
+  font: 400 .5rem/1 var(--pixel); color: var(--ink); text-shadow: 0 1px 0 #000, 0 0 6px rgba(0, 0, 0, .9); white-space: nowrap; }
+.tag .lv { color: var(--gold); }
+.tag .chip { font-size: .42rem; padding: 2px 4px; border-radius: 2px; background: var(--red); color: #fff; text-shadow: none; }
+.tag .chip.rest { background: #3a3f7a; }
+.tag .chip.scout { background: #1e6b74; }
+.minibar { width: 46px; height: 5px; background: rgba(0, 0, 0, .7); border: 1px solid rgba(255, 255, 255, .35); position: relative; }
+.minibar i { position: absolute; inset: 0 auto 0 0; background: var(--lime); }
+.minibar i.mid { background: var(--gold); } .minibar i.low { background: var(--red); }
+.minibar s { position: absolute; top: -1px; bottom: -1px; left: 100%; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); text-decoration: none; }
+.bubble { position: absolute; transform: translate(-50%, -100%); max-width: min(240px, 70vw); padding: 8px 10px;
+  background: #f4f6ff; color: #0b0d26; font: 600 .78rem/1.35 var(--body); border: 3px solid #0b0d26;
+  box-shadow: 0 0 0 2px var(--c, var(--cyan)), 0 6px 18px rgba(0, 0, 0, .5); border-radius: 4px;
+  opacity: 0; transition: opacity .18s; text-wrap: pretty; }
+.bubble.show { opacity: 1; }
+.bubble b { display: block; font: 400 .48rem/1.4 var(--pixel); color: var(--c2, #3a3f7a); margin-bottom: 3px; }
+.bubble::after { content: ""; position: absolute; left: var(--tail, 50%); bottom: -10px; width: 12px; height: 10px;
+  background: #0b0d26; clip-path: polygon(0 0, 100% 0, 30% 100%); transform: translateX(-50%); }
+.bubble::before { content: ""; position: absolute; left: var(--tail, 50%); bottom: -5px; width: 7px; height: 6px;
+  background: #f4f6ff; clip-path: polygon(0 0, 100% 0, 30% 100%); transform: translateX(-50%); z-index: 1; }
+.hint { position: absolute; bottom: 10px; right: 12px; font: 400 .48rem/1 var(--pixel); color: var(--dim); pointer-events: none; }
+
+/* ---------- scoreboard ---------- */
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.score { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px;
+  position: relative; overflow: hidden; }
+.score::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--k, var(--cyan)); box-shadow: 0 0 12px var(--k, var(--cyan)); }
+.score .k { font: 400 .52rem/1.3 var(--pixel); color: var(--muted); letter-spacing: .04em; }
+.score .v { font: 700 1.55rem/1 var(--body); font-variant-numeric: tabular-nums; }
+.score small { color: var(--muted); font-size: .8rem; }
+
+/* ---------- party cards ---------- */
+h2 { margin: 0; font: 400 .85rem/1.4 var(--pixel); color: var(--ink); display: flex; align-items: center; gap: 10px; }
+h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-hot), transparent); }
+.party { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 16px; }
+.card { --c: var(--cyan); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 14px;
+  position: relative; overflow: hidden; transition: transform .18s, border-color .18s, box-shadow .18s; }
+.card::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(420px 160px at 0 0, color-mix(in srgb, var(--c) 16%, transparent), transparent 70%); }
+.card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--c) 60%, transparent);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--c) 22%, transparent); }
+.card.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 3px var(--c), 0 0 40px var(--c); } 100% { box-shadow: none; } }
+.card.ko { filter: saturate(.55); }
+.who { display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: center; position: relative; }
+.portrait { width: 76px; height: 84px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  background: radial-gradient(circle at 50% 70%, color-mix(in srgb, var(--c) 28%, transparent), transparent 70%), #0a0b22;
+  display: grid; place-items: center; overflow: hidden; }
+.portrait canvas { width: 64px; height: 72px; image-rendering: pixelated; animation: bob 1.6s ease-in-out infinite; }
+.card.ko .portrait canvas { animation: none; transform: rotate(-90deg) translateX(-6px); filter: grayscale(1) brightness(.8); }
+@keyframes bob { 50% { transform: translateY(-3px); } }
+.name { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; }
+.name strong { font: 400 .95rem/1.2 var(--pixel); color: var(--c); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 50%, transparent); }
+.name .cls { color: var(--muted); font-size: .85rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip2 { font: 600 .68rem/1 var(--body); letter-spacing: .06em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px;
+  border: 1px solid var(--line); color: var(--muted); }
+.chip2.st { color: var(--void); background: var(--c); border-color: var(--c); }
+.chip2.st.bad { background: var(--red); border-color: var(--red); color: #fff; }
+.chip2.st.calm { background: #3a3f7a; border-color: #3a3f7a; color: var(--ink); }
+.chip2.stale { color: var(--gold); border-color: rgba(255, 210, 62, .5); }
+.bars { display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 8px; font: 400 .5rem/1 var(--pixel); color: var(--muted); }
+.bar .val { font: 600 .78rem/1 var(--body); color: var(--ink); font-variant-numeric: tabular-nums; }
+.track { height: 12px; background: #070820; border: 1px solid rgba(255, 255, 255, .14); border-radius: 3px; position: relative; overflow: visible; }
+.track i { position: absolute; inset: 1px auto 1px 1px; border-radius: 2px; background: linear-gradient(90deg, #2fd35a, var(--lime));
+  box-shadow: 0 0 10px rgba(125, 255, 106, .45); transition: width 1.2s cubic-bezier(.2, .8, .2, 1); }
+.track i.mid { background: linear-gradient(90deg, #d79c18, var(--gold)); box-shadow: 0 0 10px rgba(255, 210, 62, .4); }
+.track i.low { background: linear-gradient(90deg, #b8223a, var(--red)); box-shadow: 0 0 10px rgba(255, 77, 94, .45); }
+.track i.xp { background: linear-gradient(90deg, #5b3dff, var(--violet)); box-shadow: 0 0 10px rgba(155, 123, 255, .45); }
+.track i.acc { background: linear-gradient(90deg, #138a96, var(--cyan)); }
+.track .shield { position: absolute; top: -3px; bottom: -3px; right: 1px; border-radius: 3px; border: 2px solid var(--cyan);
+  box-shadow: 0 0 10px var(--cyan); background: rgba(62, 240, 255, .2); }
+.track i::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 9px, rgba(0, 0, 0, .35) 9px 10px); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.stats div { background: var(--panel-solid); padding: 8px 10px; display: grid; gap: 2px; min-width: 0; }
+.stats span { font: 600 .64rem/1.2 var(--body); color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+.stats b { font: 700 .98rem/1.2 var(--body); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.pos { color: var(--lime); } .neg { color: var(--red); }
+.lower { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+.lower .lbl { font: 600 .64rem/1.2 var(--body); color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.grid-sq { display: flex; flex-wrap: wrap; gap: 3px; }
+.grid-sq i { width: 9px; height: 9px; border-radius: 1px; background: var(--dim); }
+.spark { width: 100%; height: 44px; display: block; }
+.empty { color: var(--dim); font-size: .8rem; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { font: 400 .55rem/1 var(--pixel); color: var(--ink); background: rgba(255, 255, 255, .04); border: 1px solid var(--line); padding: 9px 11px;
+  border-radius: 6px; cursor: pointer; text-decoration: none; transition: background .15s, border-color .15s, color .15s; }
+.btn:hover { border-color: var(--c); color: var(--c); background: color-mix(in srgb, var(--c) 10%, transparent); }
+.btn:focus-visible, nav a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.last { color: var(--dim); font-size: .78rem; margin-left: auto; align-self: center; }
+
+/* ---------- leaderboard + log ---------- */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; align-content: start; }
+.rank { display: grid; gap: 8px; }
+.row { display: grid; grid-template-columns: 26px 34px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px;
+  background: rgba(255, 255, 255, .025); border: 1px solid transparent; cursor: pointer; }
+.row:hover { border-color: var(--line-hot); }
+.row .pl { font: 400 .7rem/1 var(--pixel); color: var(--dim); }
+.row:first-child .pl { color: var(--gold); text-shadow: 0 0 10px rgba(255, 210, 62, .6); }
+.row canvas { width: 32px; height: 36px; image-rendering: pixelated; }
+.row .nm { font: 400 .6rem/1.5 var(--pixel); }
+.row .sm { color: var(--muted); font-size: .8rem; }
+.row .rv { font: 700 1rem/1 var(--body); font-variant-numeric: tabular-nums; text-align: right; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 420px; overflow: auto; }
+.log li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 8px;
+  background: rgba(255, 255, 255, .025); font-size: .9rem; animation: slidein .5s both; }
+.log li .ic { font: 400 .7rem/1.8 var(--pixel); text-align: center; }
+@keyframes slidein { from { opacity: 0; transform: translateX(-8px); } }
+.foot { color: var(--dim); font-size: .82rem; max-width: 90ch; }
+.err { color: var(--gold); font-size: .82rem; }
+
+/* ---------- inspect dialog ---------- */
+dialog { width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line-hot); border-radius: 14px;
+  background: var(--deep); color: var(--ink); box-shadow: 0 0 60px rgba(62, 240, 255, .2); }
+dialog::backdrop { background: rgba(3, 4, 16, .75); backdrop-filter: blur(3px); }
+.dlg { display: grid; gap: 14px; padding: 18px; }
+.dlg header { display: flex; align-items: center; gap: 12px; }
+.dlg header strong { font: 400 1rem/1.3 var(--pixel); color: var(--c); }
+.dlg .x { margin-left: auto; }
+.dlg p { margin: 0; color: var(--muted); font-size: .9rem; }
+.tbl { overflow: auto; max-height: 55vh; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--panel-solid); font: 600 .66rem/1.2 var(--body); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; cursor: pointer; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; }
+td .lb { display: inline-block; width: 70px; height: 7px; background: #070820; border-radius: 2px; vertical-align: middle; margin-left: 6px; position: relative; }
+td .lb i { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: var(--lime); }
+
+@media (max-width: 860px) { .duo { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  .stage { height: 380px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .lower { grid-template-columns: 1fr; }
+  .hud-right { display: none; }
+  .board { grid-template-columns: repeat(2, 1fr); }
+  .score .v { font-size: 1.25rem; }
+  .tag .nm, .tag .chip { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .portrait canvas, .log li, .card.flash { animation: none; }
+  .track i { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <h1>KANPOM // BOT ARENA</h1>
+      <div class="sub">Every paper-trading bot, live. HP is bankroll, XP is settled bets. <span id="upd"></span></div>
+    </div>
+    <nav aria-label="KanPom pages">
+      <a href="index.html">College Football</a><a href="nfl.html">NFL</a><a href="nhl.html">NHL</a><a href="mlb.html">MLB</a><a class="on" href="bots.html">Bot Arena</a>
+    </nav>
+  </div>
+
+  <div class="stage" id="stage" aria-label="Animated arena where the bots wander and talk about their real paper-trading numbers">
+    <canvas id="cv"></canvas>
+    <div class="scan"></div>
+    <div class="overlay" id="ov"></div>
+    <div class="hud-corner" id="hudL"></div>
+    <div class="hud-corner hud-right" id="hudR"></div>
+    <div class="hint">TAP A BOT TO INSPECT</div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <section style="display:grid;gap:14px">
+    <h2>PARTY</h2>
+    <div class="party" id="party"></div>
+  </section>
+
+  <div class="duo">
+    <section class="panel"><h2>RANKINGS</h2><div class="rank" id="rank"></div>
+      <p class="foot" style="margin:0">Ranked by HP: each squad's combined virtual bankroll against what it started with. SLUGGER (off-season, reference units) and ORACLE (predictions only, ATS hit rate) sit on the bench, unranked.</p></section>
+    <section class="panel"><h2>BATTLE LOG</h2><ul class="log" id="log"></ul></section>
+  </div>
+
+  <p class="foot"><span class="paperbadge">PAPER TRADING</span>&nbsp; Nothing on this page is real money or advice. Every bot trades on paper (or, for ORACLE, only logs predictions) so its rules can prove themselves on forward results first. No rule anywhere has been promoted to TRUSTED unless its card says so. <span class="err" id="errs"></span></p>
+</div>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+const DATA = {"generated":1791779471,"chars":[{"id":"nhl","name":"FROSTBYTE","cls":"Ice Warden","sport":"NHL","sprite":"hockey","page":"nhl-paper.html","status":"IN TRAINING","hp":1.0,"shield":0.003979500000000007,"alive":80,"size":80,"pnl":79.59,"roi":0.0395,"n":460,"wins":272,"open":44,"hp_text":"80 rules \u00d7 $250","history":[["2026-10-06",-38.8],["2026-10-07",-46.69],["2026-10-08",-15.6],["2026-10-09",-54.15],["2026-10-10",56.43],["2026-10-11",79.59]],"last":"8 h ago","stats":[["Paper P&L","+$79.59"],["ROI","+4.0%"],["Settled","460"],["Open","44"],["Totals","+$67.92"],["Moneyline","+$11.67"]],"squad":[{"id":"bet-5c0a47","life":253.71,"stage":"PAPER","n":35,"pnl":3.71,"label":"ml \u00b7 fair0 \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"ml","open":2},{"id":"bet-613f74","life":253.01,"stage":"PAPER","n":29,"pnl":3.01,"label":"ml \u00b7 fair0 \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-ceadef","life":246.0,"stage":"PAPER","n":24,"pnl":-4.0,"label":"ml \u00b7 fair0 \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-5a0d84","life":243.15,"stage":"PAPER","n":18,"pnl":-6.85,"label":"ml \u00b7 fair0 \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-95f55c","life":246.37,"stage":"PAPER","n":31,"pnl":-3.63,"label":"ml \u00b7 fair1 \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-690c2e","life":248.88,"stage":"PAPER","n":25,"pnl":-1.12,"label":"ml \u00b7 fair1 \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-2b0255","life":242.94,"stage":"PAPER","n":19,"pnl":-7.06,"label":"ml \u00b7 fair1 \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-c113d2","life":254.07,"stage":"PAPER","n":12,"pnl":4.07,"label":"ml \u00b7 fair1 \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-51b0c6","life":245.06,"stage":"PAPER","n":26,"pnl":-4.94,"label":"ml \u00b7 pm_taker \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-b8d8cb","life":246.11,"stage":"PAPER","n":20,"pnl":-3.89,"label":"ml \u00b7 pm_taker \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-28a45b","life":244.89,"stage":"PAPER","n":15,"pnl":-5.11,"label":"ml \u00b7 pm_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-5d1ce8","life":251.07,"stage":"PAPER","n":9,"pnl":1.07,"label":"ml \u00b7 pm_taker \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-ad15f4","life":255.06,"stage":"PAPER","n":4,"pnl":5.06,"label":"ml \u00b7 pm_maker \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"ml","open":2},{"id":"bet-4abf60","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 pm_maker \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-2b45d3","life":254.43,"stage":"PAPER","n":1,"pnl":4.43,"label":"ml \u00b7 pm_maker \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-d42241","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 pm_maker \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"ml","open":1},{"id":"bet-dfb3b6","life":249.79,"stage":"PAPER","n":24,"pnl":-0.21,"label":"ml \u00b7 fair0 \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-09d220","life":251.91,"stage":"PAPER","n":18,"pnl":1.91,"label":"ml \u00b7 fair0 \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-baae44","life":253.16,"stage":"PAPER","n":9,"pnl":3.16,"label":"ml \u00b7 fair0 \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-8429d0","life":262.61,"stage":"PAPER","n":4,"pnl":12.61,"label":"ml \u00b7 fair0 \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-e29292","life":250.94,"stage":"PAPER","n":15,"pnl":0.94,"label":"ml \u00b7 fair1 \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-5e69b9","life":252.24,"stage":"PAPER","n":9,"pnl":2.24,"label":"ml \u00b7 fair1 \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-8002a3","life":254.81,"stage":"PAPER","n":2,"pnl":4.81,"label":"ml \u00b7 fair1 \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-5f7715","life":254.81,"stage":"PAPER","n":2,"pnl":4.81,"label":"ml \u00b7 fair1 \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"ml","open":0},{"id":"bet-63f61b","life":247.67,"stage":"PAPER","n":4,"pnl":-2.33,"label":"ml \u00b7 pm_taker \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-c83dd9","life":249.62,"stage":"PAPER","n":2,"pnl":-0.38,"label":"ml \u00b7 pm_taker \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-e4803f","life":245.49,"stage":"PAPER","n":1,"pnl":-4.51,"label":"ml \u00b7 pm_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"ml","open":0},{"id":"bet-d523b1","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 pm_taker \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"ml","open":0},{"id":"bet-29a97a","life":253.87,"stage":"PAPER","n":1,"pnl":3.87,"label":"ml \u00b7 pm_maker \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"ml","open":2},{"id":"bet-1c791e","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 pm_maker \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-fbdb1b","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 pm_maker \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-400a28","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 pm_maker \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"ml","open":1},{"id":"bet-39ec1a","life":247.96,"stage":"PAPER","n":17,"pnl":-2.04,"label":"total \u00b7 fair0 \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"total","open":3},{"id":"bet-f7f0f8","life":247.41,"stage":"PAPER","n":11,"pnl":-2.59,"label":"total \u00b7 fair0 \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"total","open":1},{"id":"bet-074bd4","life":249.11,"stage":"PAPER","n":6,"pnl":-0.89,"label":"total \u00b7 fair0 \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-59074e","life":250.17,"stage":"PAPER","n":4,"pnl":0.17,"label":"total \u00b7 fair0 \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-5db7a9","life":248.45,"stage":"PAPER","n":12,"pnl":-1.55,"label":"total \u00b7 fair1 \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"total","open":1},{"id":"bet-67dc01","life":251.89,"stage":"PAPER","n":7,"pnl":1.89,"label":"total \u00b7 fair1 \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"total","open":1},{"id":"bet-87efe6","life":250.05,"stage":"PAPER","n":2,"pnl":0.05,"label":"total \u00b7 fair1 \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-683fa7","life":250.05,"stage":"PAPER","n":2,"pnl":0.05,"label":"total \u00b7 fair1 \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-a3f912","life":260.24,"stage":"PAPER","n":8,"pnl":10.24,"label":"total \u00b7 pm_taker \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-1a31e4","life":258.16,"stage":"PAPER","n":6,"pnl":8.16,"label":"total \u00b7 pm_taker \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-e8b9c9","life":265.79,"stage":"PAPER","n":3,"pnl":15.79,"label":"total \u00b7 pm_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-6f1301","life":254.76,"stage":"PAPER","n":1,"pnl":4.76,"label":"total \u00b7 pm_taker \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-18ea99","life":254.06,"stage":"PAPER","n":3,"pnl":4.06,"label":"total \u00b7 pm_maker \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"total","open":3},{"id":"bet-62cc09","life":252.26,"stage":"PAPER","n":2,"pnl":2.26,"label":"total \u00b7 pm_maker \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"total","open":1},{"id":"bet-eb7e63","life":255.87,"stage":"PAPER","n":1,"pnl":5.87,"label":"total \u00b7 pm_maker \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-4e9ab4","life":255.87,"stage":"PAPER","n":1,"pnl":5.87,"label":"total \u00b7 pm_maker \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-1fb9bb","life":250.8,"stage":"PAPER","n":6,"pnl":0.8,"label":"total \u00b7 fair0 \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-7c1955","life":250.72,"stage":"PAPER","n":4,"pnl":0.72,"label":"total \u00b7 fair0 \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-b2f55b","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 fair0 \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-3a0c72","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 fair0 \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-6a1672","life":253.05,"stage":"PAPER","n":1,"pnl":3.05,"label":"total \u00b7 fair1 \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-c8e76c","life":253.05,"stage":"PAPER","n":1,"pnl":3.05,"label":"total \u00b7 fair1 \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-241c2a","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 fair1 \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-70868b","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 fair1 \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-6c779a","life":252.7,"stage":"PAPER","n":1,"pnl":2.7,"label":"total \u00b7 pm_taker \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-95bd63","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 pm_taker \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-8945ce","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 pm_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-c09bf6","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 pm_taker \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-e90f38","life":252.75,"stage":"PAPER","n":1,"pnl":2.75,"label":"total \u00b7 pm_maker \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"total","open":1},{"id":"bet-0a7b30","life":252.75,"stage":"PAPER","n":1,"pnl":2.75,"label":"total \u00b7 pm_maker \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"total","open":1},{"id":"bet-aae374","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 pm_maker \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-a111c3","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 pm_maker \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-2bf2b2","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 nv_taker \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"ml","open":0},{"id":"bet-93576a","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 nv_taker \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"ml","open":0},{"id":"bet-04405a","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 nv_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"ml","open":0},{"id":"bet-b831e7","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 nv_taker \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"ml","open":0},{"id":"bet-0c02bc","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 nv_taker \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"ml","open":0},{"id":"bet-268411","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 nv_taker \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"ml","open":0},{"id":"bet-7d62ce","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 nv_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"ml","open":0},{"id":"bet-3e5789","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"ml \u00b7 nv_taker \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"ml","open":0},{"id":"bet-aa32d0","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 nv_taker \u00b7 edge 2% \u00b7 early \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-77cea2","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 nv_taker \u00b7 edge 2% \u00b7 late \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-0d4720","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 nv_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-131310","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 nv_taker \u00b7 edge 4% \u00b7 late \u00b7 blend 1.0","market":"total","open":0},{"id":"bet-8517cd","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 nv_taker \u00b7 edge 2% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-8f2141","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 nv_taker \u00b7 edge 2% \u00b7 late \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-8ba4bc","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 nv_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 0.5","market":"total","open":0},{"id":"bet-d0d980","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 nv_taker \u00b7 edge 4% \u00b7 late \u00b7 blend 0.5","market":"total","open":0}],"squad_name":"betting rules","lines":["460 settled paper bets. Squad is +$79.59 overall.","My totals crew is +$67.92 on 101 bets. Moneylines: +$11.67.","Top rule: total \u00b7 pm_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0 at $266.","80 of 80 rules still standing. 0 TRUSTED - that takes 100 bets and 90% confidence.","I price on Polymarket after fees. The taker fee is the real final boss.","Weakest link: ml \u00b7 fair1 \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0 at $243."],"note":"Paper only. 80 rule variants each with a virtual $250. Promotion to TRUSTED needs 100 forward bets, P(edge) \u2265 0.90, positive ROI and CLV.","level":11,"xp":0.7142857142857143,"stale":false},{"id":"cfb","name":"GRIDLOCK","cls":"Gridiron Mech","sport":"CFB","sprite":"football","page":"cfb-lab.html","status":"IN TRAINING","hp":0.9916550000000001,"shield":0.0,"alive":24,"size":24,"pnl":-50.07,"roi":-0.019,"n":558,"wins":277,"open":651,"hp_text":"24 rules \u00d7 $250","history":[["2026-10-06",-50.09]],"last":"weekly","stats":[["Paper P&L","-$50.07"],["ROI","-1.9%"],["Settled","558"],["Open","651"],["Spreads","+$96.63"],["Totals","-$146.70"]],"squad":[{"id":"cv-b951d6","life":268.06,"stage":"PAPER","n":52,"pnl":18.06,"label":"spread \u00b7 even \u00b7 edge 2% \u00b7 blend 1.0","market":"spread","open":59,"roi":0.0745738581496476},{"id":"cv-3459c0","life":213.23,"stage":"PAPER","n":46,"pnl":-36.77,"label":"total \u00b7 even \u00b7 edge 2% \u00b7 blend 1.0","market":"total","open":55,"roi":-0.16924977948241507},{"id":"cv-9f311b","life":255.0,"stage":"PAPER","n":42,"pnl":5.0,"label":"spread \u00b7 even \u00b7 edge 4% \u00b7 blend 1.0","market":"spread","open":44,"roi":0.024390243902439025},{"id":"cv-9437d3","life":254.71,"stage":"PAPER","n":42,"pnl":4.71,"label":"spread \u00b7 even \u00b7 edge 2% \u00b7 blend 0.5","market":"spread","open":44,"roi":0.025544826239935245},{"id":"cv-11f5d3","life":244.64,"stage":"PAPER","n":39,"pnl":-5.36,"label":"spread \u00b7 std110 \u00b7 edge 2% \u00b7 blend 1.0","market":"spread","open":43,"roi":-0.028549309805962285},{"id":"cv-42ebb7","life":220.0,"stage":"PAPER","n":36,"pnl":-30.0,"label":"total \u00b7 even \u00b7 edge 4% \u00b7 blend 1.0","market":"total","open":44,"roi":-0.16666666666666666},{"id":"cv-cdb2c1","life":234.31,"stage":"PAPER","n":36,"pnl":-15.69,"label":"total \u00b7 even \u00b7 edge 2% \u00b7 blend 0.5","market":"total","open":44,"roi":-0.10014670997728113},{"id":"cv-a36e8e","life":230.43,"stage":"PAPER","n":34,"pnl":-19.57,"label":"total \u00b7 std110 \u00b7 edge 2% \u00b7 blend 1.0","market":"total","open":44,"roi":-0.12214246427525535},{"id":"cv-63a068","life":252.73,"stage":"PAPER","n":30,"pnl":2.73,"label":"spread \u00b7 std110 \u00b7 edge 4% \u00b7 blend 1.0","market":"spread","open":34,"roi":0.01818181818181813},{"id":"cv-0ef975","life":238.64,"stage":"PAPER","n":29,"pnl":-11.36,"label":"total \u00b7 std110 \u00b7 edge 4% \u00b7 blend 1.0","market":"total","open":34,"roi":-0.07836990595611287},{"id":"cv-c9d804","life":265.0,"stage":"PAPER","n":25,"pnl":15.0,"label":"spread \u00b7 even \u00b7 edge 4% \u00b7 blend 0.5","market":"spread","open":25,"roi":0.12},{"id":"cv-9e0b7c","life":264.98,"stage":"PAPER","n":25,"pnl":14.98,"label":"spread \u00b7 even \u00b7 edge 2% \u00b7 blend 0.25","market":"spread","open":25,"roi":0.14225994140592946},{"id":"cv-f6e6f6","life":263.86,"stage":"PAPER","n":24,"pnl":13.86,"label":"spread \u00b7 std110 \u00b7 edge 2% \u00b7 blend 0.5","market":"spread","open":23,"roi":0.1249107891648244},{"id":"cv-78cf11","life":260.0,"stage":"PAPER","n":18,"pnl":10.0,"label":"total \u00b7 even \u00b7 edge 4% \u00b7 blend 0.5","market":"total","open":28,"roi":0.1111111111111111},{"id":"cv-aeff76","life":249.97,"stage":"PAPER","n":18,"pnl":-0.03,"label":"total \u00b7 even \u00b7 edge 2% \u00b7 blend 0.25","market":"total","open":28,"roi":-0.00035547248180031505},{"id":"cv-d114d6","life":245.86,"stage":"PAPER","n":17,"pnl":-4.14,"label":"total \u00b7 std110 \u00b7 edge 2% \u00b7 blend 0.5","market":"total","open":23,"roi":-0.054072356529794224},{"id":"cv-7df8fc","life":260.91,"stage":"PAPER","n":15,"pnl":10.91,"label":"spread \u00b7 std110 \u00b7 edge 4% \u00b7 blend 0.5","market":"spread","open":12,"roi":0.1454545454545454},{"id":"cv-8ccb2f","life":229.09,"stage":"PAPER","n":8,"pnl":-20.91,"label":"total \u00b7 std110 \u00b7 edge 4% \u00b7 blend 0.5","market":"total","open":13,"roi":-0.5227272727272727},{"id":"cv-249d57","life":257.19,"stage":"PAPER","n":6,"pnl":7.19,"label":"spread \u00b7 std110 \u00b7 edge 2% \u00b7 blend 0.25","market":"spread","open":6,"roi":0.2778956243029663},{"id":"cv-1b1bd7","life":260.0,"stage":"PAPER","n":6,"pnl":10.0,"label":"spread \u00b7 even \u00b7 edge 4% \u00b7 blend 0.25","market":"spread","open":7,"roi":0.3333333333333333},{"id":"cv-62a7e3","life":235.0,"stage":"PAPER","n":5,"pnl":-15.0,"label":"total \u00b7 even \u00b7 edge 4% \u00b7 blend 0.25","market":"total","open":9,"roi":-0.6},{"id":"cv-118b3a","life":246.77,"stage":"PAPER","n":3,"pnl":-3.23,"label":"total \u00b7 std110 \u00b7 edge 2% \u00b7 blend 0.25","market":"total","open":6,"roi":-0.3442839759195191},{"id":"cv-7cc850","life":249.55,"stage":"PAPER","n":2,"pnl":-0.45,"label":"spread \u00b7 std110 \u00b7 edge 4% \u00b7 blend 0.25","market":"spread","open":1,"roi":-0.045454545454545504},{"id":"cv-c91124","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"total \u00b7 std110 \u00b7 edge 4% \u00b7 blend 0.25","market":"total","open":0,"roi":0.0}],"squad_name":"betting rules","lines":["558 bets settled, 651 more riding on this week.","Spreads +$96.63, totals -$146.70. The totals are bruising me.","Best rule so far: spread \u00b7 even \u00b7 edge 2% \u00b7 blend 1.0 ($268).","Honest scouting report: no edge over the market proven yet.","Only 1 week of forward results. Ask me again in November."],"note":"Paper only. 24 spread/total rules bet the lab champion's predictions before kickoff at the consensus line.","level":12,"xp":0.8043478260869565,"stale":false},{"id":"life","name":"LIFELINE","cls":"Kalshi Organism","sport":"KALSHI","sprite":"heart","page":null,"status":"ALIVE","hp":0.867168,"shield":0.0,"alive":15,"size":15,"pnl":-410.03,"roi":null,"n":805,"wins":264,"open":114,"hp_text":"15 strategies \u00d7 $250","history":[["2026-09-29",68.43],["2026-09-30",109.11],["2026-10-01",84.4],["2026-10-02",51.86],["2026-10-06",-31.06],["2026-10-07",-135.11],["2026-10-08",-227.58],["2026-10-09",-323.97],["2026-10-10",-383.28],["2026-10-11",-410.65]],"last":"2 h ago","stats":[["Paper P&L","-$410.03"],["Win rate","33%"],["Settled","805"],["Open","114"],["Worst family","weather -$201.56"],["Alive","15/15 strategies"]],"squad":[{"id":"bias-e51651","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"bias","family":"bias","tier":"HEALTHY","open":0},{"id":"bias-f7908e","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"bias","family":"bias","tier":"HEALTHY","open":0},{"id":"bias-f5c5e7","life":150.77,"stage":"PAPER","n":33,"pnl":-56.38,"label":"bias","family":"bias","tier":"WOUNDED","open":2},{"id":"bias-e3594b","life":160.06,"stage":"PAPER","n":96,"pnl":-50.66,"label":"bias","family":"bias","tier":"WOUNDED","open":5},{"id":"weather-c53e62","life":197.68,"stage":"PAPER","n":63,"pnl":-34.44,"label":"weather","family":"weather","tier":"WOUNDED","open":10},{"id":"weather-5db628","life":196.39,"stage":"PAPER","n":57,"pnl":-35.05,"label":"weather","family":"weather","tier":"WOUNDED","open":10},{"id":"weather-056952","life":183.89,"stage":"PAPER","n":254,"pnl":-80.15,"label":"weather","family":"weather","tier":"WOUNDED","open":36},{"id":"weather-b21997","life":214.52,"stage":"PAPER","n":267,"pnl":-51.92,"label":"weather","family":"weather","tier":"WOUNDED","open":32},{"id":"obslock-235681","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"obslock","family":"obslock","tier":"HEALTHY","open":0},{"id":"obslock-01e4ba","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"obslock","family":"obslock","tier":"HEALTHY","open":0},{"id":"bookanchor-c33580","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"bookanchor","family":"bookanchor","tier":"HEALTHY","open":0},{"id":"bookanchor-e09888","life":250.0,"stage":"PAPER","n":0,"pnl":0.0,"label":"bookanchor","family":"bookanchor","tier":"HEALTHY","open":0},{"id":"lip-v1","life":225.55,"stage":"PAPER","n":7,"pnl":-24.45,"label":"lip","family":"lip","tier":null,"open":5},{"id":"lip-v2","life":214.12,"stage":"PAPER","n":14,"pnl":-35.88,"label":"lip","family":"lip","tier":null,"open":0},{"id":"lip-v3","life":208.9,"stage":"PAPER","n":14,"pnl":-41.1,"label":"lip","family":"lip","tier":null,"open":14}],"squad_name":"strategies","lines":["Coma at $100, death at $10. I intend to live.","weather strategies are bleeding: -$201.56. The learner is watching.","Strongest cell: lip-v1 at $226.","15 strategies alive, 114 positions open on Kalshi (paper).","No real money yet. Paper first, then probation at $2 a trade.","Weakest cell: bias-f5c5e7 at $151. Hang in there."],"note":"Paper only. Each strategy variant has its own virtual $250; promotion PAPER \u2192 PROBATION \u2192 ACTIVE needs statistical gates.","level":15,"xp":0.1810344827586207,"stale":false},{"id":"mlb","name":"SLUGGER","cls":"Diamond Bot","sport":"MLB","sprite":"cap","page":"mlb.html","status":"OFF-SEASON","resting":true,"hp":1.0,"shield":0,"alive":1,"size":1,"pnl":1849.03,"roi":0.0084,"n":916,"wins":425,"open":23,"hp_text":"916 bets \u00b7 reference units","history":[["2026-07-29",212.28],["2026-07-30",1504.21],["2026-07-31",4344.19],["2026-08-01",5311.87],["2026-08-02",3110.52],["2026-08-03",3265.89],["2026-08-04",3493.38],["2026-08-05",3768.18],["2026-08-06",2492.5],["2026-08-07",3453.64],["2026-08-08",3610.6],["2026-08-09",3761.95],["2026-08-10",2843.12],["2026-08-11",4567.49],["2026-08-12",4587.68],["2026-08-13",5483.65],["2026-08-14",5532.64],["2026-08-15",4408.24],["2026-08-16",4248.59],["2026-08-17",4904.57],["2026-08-18",5649.36],["2026-08-19",7305.08],["2026-08-20",6832.56],["2026-08-21",6845.79],["2026-08-22",5063.1],["2026-08-23",4296.14],["2026-08-24",4560.04],["2026-08-25",6052.22],["2026-08-26",5437.05],["2026-08-27",5950.19],["2026-08-28",5640.47],["2026-08-29",6014.1],["2026-08-30",4317.39],["2026-08-31",3211.48],["2026-09-01",4344.29],["2026-09-02",4744.49],["2026-09-03",3782.71],["2026-09-04",4019.46],["2026-09-05",6839.98],["2026-09-06",6826.85],["2026-09-07",6571.3],["2026-09-08",5065.31],["2026-09-09",6292.15],["2026-09-10",5984.89],["2026-09-11",5213.35],["2026-09-12",4949.18],["2026-09-13",4260.56],["2026-09-14",3673.68],["2026-09-15",3473.09],["2026-09-16",4055.21],["2026-09-17",3933.76],["2026-09-18",2204.18],["2026-09-19",1849.03]],"last":"season ended 2026-09-19","stats":[["P&L (ref. units)","+$1,849.03"],["ROI","+0.8%"],["Bets","916"],["Win rate","46%"],["Avg CLV","-8.0%"],["Unsettled","23"]],"squad":[],"squad_name":"","lines":["Season's over. 916 bets, ROI +0.8%.","Honest truth: my average CLV was -8.0%. Some of that ROI is luck.","Resting in the dugout. Lab's still testing ideas for next year.","I priced at the ask with no fee. Next season the page charges the fee."],"note":"Production MLB model's tracked record, in reference-bankroll units (stakes are not dollars you risked). Season ended.","level":16,"xp":0.12903225806451613,"stale":false},{"id":"nfl","name":"ORACLE","cls":"Forward Scout","sport":"NFL","sprite":"eye","page":"nfl.html","status":"SCOUTING","scout":true,"hp":0.3076923076923077,"shield":0,"alive":1,"size":1,"pnl":null,"roi":null,"n":14,"wins":4,"open":null,"hp_text":"ATS 4-9-1","history":[],"last":"each slate","stats":[["Games logged","14"],["ATS","4-9-1"],["Totals","5-8-0"],["Model error","12.4 pts"],["Market error","10.6 pts"],["Total error","10.2 vs 9.8"]],"squad":[],"squad_name":"","lines":["I don't bet. I predict, frozen before kickoff. 14 games so far.","Against the spread: 4-9-1. Humbling.","Market misses by 10.6 pts, I miss by 12.4. The market is still smarter.","Forward results decide everything. Backtests are just rumors."],"note":"NFL forward record: snapshots logged before kickoff, never edited. Not a betting bot; accuracy bar = ATS win rate.","level":2,"xp":0.8333333333333334,"stale":false},{"id":"mm","name":"SPREADER","cls":"Market Maker","sport":"KALSHI","sprite":"monitor","page":null,"status":"KNOCKED OUT","ko":true,"hp":0.8513,"shield":0,"alive":0,"size":1,"pnl":-14.87,"roi":null,"n":2648,"wins":null,"open":19,"hp_text":"$85.13 of $100","history":[],"last":"50 days ago","stats":[["Equity","$85.13"],["P&L","-$14.87"],["Fills","2,648"],["Fees paid","$32.74"],["Stuck positions","19"],["Last fill","50 days ago"]],"squad":[],"squad_name":"","lines":["HARD HALT: drawdown 15.14 at Sat Aug 22 22:17:44 2026.","2,648 fills... and $32.74 of fees. The fees won.","Zzz... waiting for my human to type CLEAR.","Equity $85.13. I'm down, not deleted."],"note":"Paper spread-capture bot on Kalshi sports. Hard-halted by its own drawdown breaker; it only restarts when you reset it.","level":26,"xp":0.7254901960784313,"stale":false}],"events":[{"icon":"crown","text":"FROSTBYTE holds the crown: +4.0% ROI on 460 paper bets."},{"icon":"ko","text":"SPREADER is knocked out (HARD HALT: drawdown 15.14 at Sat Aug 22 22:17:44 2026.) Equity $85.13 of $100."},{"icon":"up","text":"FROSTBYTE's best betting rule is at $265.79 (total \u00b7 pm_taker \u00b7 edge 4% \u00b7 early \u00b7 blend 1.0)."},{"icon":"up","text":"GRIDLOCK's best betting rule is at $268.06 (spread \u00b7 even \u00b7 edge 2% \u00b7 blend 1.0)."},{"icon":"down","text":"LIFELINE's bias-f5c5e7 is wounded at $150.77."},{"icon":"shield","text":"0 rules have earned TRUSTED status across the arena. Everything here is still paper."},{"icon":"rest","text":"SLUGGER is resting for the off-season (+0.8% ROI, CLV -8.0%)."},{"icon":"eye","text":"ORACLE's forward record: ATS 4-9-1 over 14 games."}],"errors":{},"updated":"Oct 11, 2026 \u00b7 11:31 PM"};
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ======================= sprites ======================= */
+const HEADS = {
+  hockey: ["................", ".....kkkkkk.....", "....khhhhhhk....", "...khhhhhhhhk...", "...khvvvvvvhk...",
+           "...khvwvvwvhk...", "...khvvvvvvhk...", "....khhhhhhk....", ".....kkkkkk....."],
+  football: ["................", ".....kkkkkk.....", "....khhsshhk....", "...khhhsshhhk...", "...khvvvvvvhhk..",
+             "...kmwmmmwmmhk..", "...kmvvvvvvmhk..", "....kmmmmmmkk...", ".....kkkkkk....."],
+  cap: ["................", "....kkkkkkk.....", "...kccccccck....", "..kccccoccccck..", "..kkkkkkkkkkkkkk",
+        "...kffffffffk...", "...kfwffffwfk...", "...kffffffffk...", "....kkkkkkkk...."],
+  monitor: ["......k..k......", ".......kk.......", "..kkkkkkkkkkkk..", "..kvvvvvvvvvvk..", "..kvvvvvvvvgvk..",
+            "..kvgvvvvvgvgk..", "..kvvgvvvgvvvk..", "..kvvvgggvvvvk..", "..kkkkkkkkkkkk.."],
+};
+const TORSO = ["...kkbbbbbbkk...", "..kabbssssbbak..", "..kabbbbbbbbak..", "..kabbbbbbbbak..", "...kbbssssbbk...", "...kkkkkkkkkk..."];
+const LEGS = [["....kll..llk....", "....kll..llk....", "...kkkk..kkkk..."],
+              ["....kll..llk....", "...kll....llk...", "..kkkk....kkkk.."]];
+const HEART = ["...kkk....kkk...", "..krrrk..krrrk..", ".krrprrkkrrrrrk.", ".krpprrrrrrrrrk.", ".krrrrrrrrrrrrk.",
+               ".krrwwrrrrwwrrk.", ".krrwkrrrrwkrrk.", ".krrrrrrrrrrrrk.", "..krrrrkkrrrrk..", "...krrrrrrrrk...",
+               "....krrrrrrk....", ".....krrrrk.....", "......krrk......", ".......kk......."];
+const EYE = [".....kkkkkk.....", "...kkoooooookk..", "..kooooooooooo k".replace(" ", "o"), ".kooowwwwwwoook.",
+             ".koowiiiiiiwook.", ".kowiiieeiiiwok.", ".kowiieeeeiiwok.", ".kowiiieeiiiwok.", ".koowiiiiiiwook.",
+             ".kooowwwwwwoook.", "..kooooooooook..", "...kkooooookk...", ".....kkttkk....."];
+const FLAME = [["......tTTt......", ".......TT......."], ["......TttT......", "......t..t......"]];
+const ACC = {   // [col, row, colorKey] pixels added on top of the composed body sprite
+  hockey: [[14, 10, "x"], [14, 11, "x"], [14, 12, "x"], [14, 13, "x"], [14, 14, "x"], [14, 15, "x"], [14, 16, "x"],
+           [13, 17, "x"], [14, 17, "x"], [15, 17, "x"], [13, 11, "g"]],
+  football: [[0, 11, "f"], [1, 11, "f"], [2, 11, "f"], [0, 12, "f"], [1, 12, "f"], [2, 12, "f"], [1, 10, "f"], [1, 13, "f"], [1, 11, "w"]],
+  cap: [[15, 5, "x"], [15, 6, "x"], [14, 6, "x"], [15, 7, "x"], [14, 7, "x"], [15, 8, "x"], [14, 9, "x"], [14, 10, "x"], [14, 11, "x"], [13, 11, "g"]],
+  monitor: [],
+};
+const PAL = {
+  hockey: { k: "#0b0d1f", h: "#2a6bff", v: "#071636", w: "#7ff9ff", b: "#e8f2ff", s: "#2a6bff", a: "#9fb4d9", l: "#22357a", x: "#c8a26a", g: "#0b0d1f" },
+  football: { k: "#140a0a", h: "#ff7a1a", s: "#ffffff", m: "#c9c9d6", v: "#1a0a00", w: "#ffd09b", b: "#8a1f34", a: "#c9c9d6", l: "#3a2a2a", f: "#8a4b22" },
+  cap: { k: "#120a12", c: "#d8253d", o: "#ffffff", f: "#b8c4d8", w: "#ff3e5e", b: "#f2f2f2", s: "#d8253d", a: "#b8c4d8", l: "#2a2a3a", x: "#c8a26a", g: "#d8253d" },
+  monitor: { k: "#0b0820", v: "#1a0a2a", g: "#ff3ea5", b: "#7a4dff", s: "#ff3ea5", a: "#b9a6ff", l: "#3a2a7a" },
+  heart: { k: "#2a0614", r: "#ff3e7a", p: "#ffc2d8", w: "#ffffff" },
+  eye: { k: "#1a1200", o: "#ffd23e", w: "#ffffff", i: "#3ef0ff", e: "#05061a", t: "#ff9d3e", T: "#fff2a8" },
+};
+const COLOR = { hockey: "#3ef0ff", football: "#ff8a3d", cap: "#ff4d6a", monitor: "#b07bff", heart: "#ff4f9a", eye: "#ffd23e" };
+const CROWN = ["y.y.y.y", "yyyyyyy", "yrybyry", "yyyyyyy"];
+
+function rows(kind, frame) {
+  if (kind === "heart") return HEART;
+  if (kind === "eye") return EYE.concat(FLAME[frame % 2]);
+  const r = HEADS[kind].concat(TORSO, LEGS[frame % 2]).map(s => s.padEnd(16, ".").slice(0, 16).split(""));
+  for (const [x, y, k] of ACC[kind]) if (r[y]) r[y][x] = k;
+  return r.map(a => a.join(""));
+}
+function grey(hex) {
+  const n = parseInt(hex.slice(1), 16), g = Math.round(((n >> 16) * .3 + ((n >> 8) & 255) * .59 + (n & 255) * .11) * .7);
+  return `rgb(${g},${g},${g + 12})`;
+}
+const bakeCache = {};
+function bake(kind, frame, ko) {
+  const key = kind + frame + (ko ? "k" : "");
+  if (bakeCache[key]) return bakeCache[key];
+  const m = rows(kind, frame), pal = PAL[kind];
+  const c = document.createElement("canvas"); c.width = 16; c.height = m.length;
+  const x = c.getContext("2d");
+  m.forEach((row, j) => [...row].forEach((ch, i) => {
+    if (ch === "." || ch === " " || !pal[ch]) return;
+    x.fillStyle = ko ? grey(pal[ch]) : pal[ch]; x.fillRect(i, j, 1, 1);
+  }));
+  return (bakeCache[key] = c);
+}
+function crownCanvas() {
+  const c = document.createElement("canvas"); c.width = 7; c.height = 4; const x = c.getContext("2d");
+  const p = { y: "#ffd23e", r: "#ff3e5e", b: "#3ef0ff" };
+  CROWN.forEach((row, j) => [...row].forEach((ch, i) => { if (p[ch]) { x.fillStyle = p[ch]; x.fillRect(i, j, 1, 1); } }));
+  return c;
+}
+const CROWN_C = crownCanvas();
+function portrait(c, kind, ko, scale = 4) {
+  const img = bake(kind, 0, ko); c.width = 16 * scale; c.height = 18 * scale;
+  const x = c.getContext("2d"); x.imageSmoothingEnabled = false;
+  x.drawImage(img, 0, (18 - img.height) * scale / 2, 16 * scale, img.height * scale);
+}
+
+/* ======================= formatting ======================= */
+const money = v => v == null ? "–" : (v >= 0 ? "+" : "−") + "$" + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct = v => v == null ? "–" : (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(1) + "%";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const hpClass = h => h >= .75 ? "" : h >= .4 ? "mid" : "low";
+const sgn = v => v == null ? "" : v >= 0 ? "pos" : "neg";
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const hpScore = c => c.scout ? c.hp : c.hp + c.shield;
+
+/* ======================= derived ======================= */
+const chars = DATA.chars;
+const byId = Object.fromEntries(chars.map(c => [c.id, c]));
+const crowned = chars.filter(c => c.roi != null && c.n >= 50 && !c.resting && !c.ko).sort((a, b) => b.roi - a.roi)[0];
+chars.forEach(c => { c.color = COLOR[c.sprite]; c.crown = crowned && c.id === crowned.id; });
+
+/* ======================= HUD: header, scoreboard ======================= */
+document.getElementById("upd").textContent = "Updated " + DATA.updated + ".";
+const online = chars.filter(c => !c.ko).length;
+const settled = chars.filter(c => !c.scout).reduce((s, c) => s + (c.id === "mm" ? 0 : c.n || 0), 0);
+const trusted = chars.reduce((s, c) => s + (c.squad || []).filter(m => m.stage === "TRUSTED").length, 0);
+const squads = chars.reduce((s, c) => s + (c.squad || []).length, 0);
+const fighters = chars.reduce((s, c) => s + (c.squad || []).filter(m => m.life > 10).length, 0);
+document.getElementById("board").innerHTML = [
+  ["BOTS ONLINE", `${online}/${chars.length}`, chars.filter(c => c.ko).map(c => c.name + " is KO'd").join(", ") || "all standing", "var(--lime)"],
+  ["BETS SETTLED", settled.toLocaleString(), "paper bets across every bot", "var(--violet)"],
+  ["RULES FIGHTING", `${fighters}/${squads}`, "squad members above the $10 death line", "var(--magenta)"],
+  ["TRUSTED RULES", String(trusted), trusted ? "earned on forward results" : "none yet: all still proving themselves", "var(--gold)"],
+  ["CROWN", crowned ? crowned.name : "–", crowned ? `${pct(crowned.roi)} ROI on ${crowned.n} bets` : "", "var(--cyan)"],
+].map(([k, v, s, col]) => `<div class="score" style="--k:${col}"><span class="k">${k}</span><span class="v">${esc(v)}</span><small>${esc(s)}</small></div>`).join("");
+document.getElementById("hudL").innerHTML = `ARENA LIVE<br><b>${online}</b> BOTS ONLINE`;
+document.getElementById("hudR").innerHTML = `PAPER MODE<br>${esc(DATA.updated.toUpperCase())}`;
+const errs = Object.keys(DATA.errors || {});
+if (errs.length) document.getElementById("errs").textContent = `Data note: could not refresh ${errs.join(", ")} this run; showing the last good reading.`;
+
+/* ======================= party cards ======================= */
+function spark(hist, color) {
+  if (!hist || hist.length < 2) return `<div class="empty">${hist && hist.length ? "one day of results so far" : "no daily history"}</div>`;
+  const vs = hist.map(h => h[1]), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), W = 200, H = 44, pad = 3;
+  const X = i => pad + i * (W - 2 * pad) / (vs.length - 1), Y = v => H - pad - (v - lo) / ((hi - lo) || 1) * (H - 2 * pad);
+  const pts = vs.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+  const last = vs[vs.length - 1], col = last >= 0 ? "var(--lime)" : "var(--red)";
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Cumulative P&L, ${hist[0][0]} to ${hist[hist.length - 1][0]}, now ${money(last)}">
+    <line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="rgba(255,255,255,.18)" stroke-dasharray="3 3"/>
+    <polyline points="${X(0)},${Y(0)} ${pts} ${X(vs.length - 1)},${Y(0)}" fill="${col}" fill-opacity=".12" stroke="none"/>
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
+}
+function squadGrid(sq) {
+  if (!sq || !sq.length) return `<div class="empty">solo bot</div>`;
+  return `<div class="grid-sq">${[...sq].sort((a, b) => b.life - a.life).map(m => {
+    const r = m.life / 250, col = m.life <= 10 ? "#333" : r >= 1.02 ? "var(--cyan)" : r >= .98 ? "var(--lime)" : r >= .8 ? "var(--gold)" : "var(--red)";
+    return `<i style="background:${col}" title="${esc(m.id)} · $${m.life.toFixed(2)} · ${m.n} bets · ${esc(m.label)}"></i>`;
+  }).join("")}</div>`;
+}
+const party = document.getElementById("party");
+chars.forEach(c => {
+  const st = c.ko ? "bad" : c.resting || c.scout ? "calm" : "";
+  const hpPct = Math.max(0, Math.min(1, c.hp)) * 100;
+  const card = document.createElement("article");
+  card.className = "card" + (c.ko ? " ko" : ""); card.id = "card-" + c.id; card.style.setProperty("--c", c.color);
+  card.innerHTML = `
+    <div class="who"><div class="portrait"><canvas aria-hidden="true"></canvas></div>
+      <div><div class="name"><strong>${esc(c.name)}</strong><span class="cls">${esc(c.cls)} · ${esc(c.sport)}</span></div>
+        <div class="chips"><span class="chip2 st ${st}">${esc(c.status)}</span><span class="chip2">LV ${c.level}</span>
+          ${c.crown ? '<span class="chip2" style="color:var(--gold);border-color:rgba(255,210,62,.5)">♛ CROWN</span>' : ""}
+          ${c.stale ? '<span class="chip2 stale">stale data</span>' : ""}</div></div></div>
+    <div class="bars">
+      <div class="bar">${c.scout ? "ACC" : "HP"}<div class="track"><i class="${c.scout ? "acc" : hpClass(c.hp)}" style="width:0"></i>${c.shield > 0 ? `<span class="shield" style="width:${Math.max(3, Math.min(22, c.shield * 100 * 5))}%" title="Overshield: gains above the starting bankroll"></span>` : ""}</div><span class="val">${esc(c.hp_text)}</span></div>
+      <div class="bar">XP<div class="track"><i class="xp" style="width:0"></i></div><span class="val">${(c.n || 0).toLocaleString()} ${c.id === "mm" ? "fills" : c.scout ? "games" : "bets"}</span></div>
+    </div>
+    <div class="stats">${c.stats.map(([k, v]) => `<div><span>${esc(k)}</span><b class="${/^[+−-]\$|^[+−-]\d/.test(v) ? (v[0] === "+" ? "pos" : "neg") : ""}">${esc(v)}</b></div>`).join("")}</div>
+    <div class="lower"><div><div class="lbl">${c.squad && c.squad.length ? `Squad · ${c.squad.length} ${esc(c.squad_name)}` : "Squad"}</div>${squadGrid(c.squad)}</div>
+      <div><div class="lbl">Paper P&amp;L over time</div>${spark(c.history)}</div></div>
+    <div class="actions"><button class="btn" data-inspect="${c.id}">INSPECT</button>${c.page ? `<a class="btn" href="${c.page}">FULL PAGE →</a>` : ""}<span class="last">Last action: ${esc(c.last)}</span></div>`;
+  party.appendChild(card);
+  portrait(card.querySelector(".portrait canvas"), c.sprite, c.ko);
+  requestAnimationFrame(() => setTimeout(() => {
+    card.querySelectorAll(".track i")[0].style.width = hpPct + "%";
+    card.querySelectorAll(".track i")[1].style.width = Math.max(3, c.xp * 100) + "%";
+  }, 120));
+});
+
+/* ======================= rankings + log ======================= */
+const rank = document.getElementById("rank");
+const benched = c => (c.resting || c.scout) ? 1 : 0;
+[...chars].sort((a, b) => (benched(a) - benched(b)) || (a.ko - b.ko) || hpScore(b) - hpScore(a)).forEach((c, i) => {
+  const r = document.createElement("div"); r.className = "row"; r.tabIndex = 0; r.setAttribute("role", "button");
+  r.innerHTML = `<span class="pl">${benched(c) ? "–" : i + 1}</span><canvas aria-hidden="true"></canvas><div><div class="nm" style="color:${c.color}">${esc(c.name)}</div>
+    <div class="sm">${esc(c.status.toLowerCase())} · ${c.pnl != null ? money(c.pnl) : esc(c.hp_text)}</div></div>
+    <span class="rv ${benched(c) ? "" : sgn(hpScore(c) - 1)}">${c.scout ? (c.hp * 100).toFixed(0) + "% ATS" : c.resting ? pct(c.roi) + " ROI" : (hpScore(c) * 100).toFixed(1) + "%"}</span>`;
+  portrait(r.querySelector("canvas"), c.sprite, c.ko, 2);
+  r.onclick = r.onkeydown = e => { if (e.type === "click" || e.key === "Enter") inspect(c.id); };
+  rank.appendChild(r);
+});
+const ICON = { crown: ["♛", "var(--gold)"], ko: ["✖", "var(--red)"], skull: ["☠", "var(--red)"], up: ["▲", "var(--lime)"],
+  down: ["▼", "var(--red)"], shield: ["◆", "var(--cyan)"], rest: ["☾", "var(--violet)"], eye: ["◉", "var(--gold)"] };
+document.getElementById("log").innerHTML = DATA.events.map((e, i) => {
+  const [g, col] = ICON[e.icon] || ["•", "var(--muted)"];
+  return `<li style="animation-delay:${i * 70}ms"><span class="ic" style="color:${col}">${g}</span><span>${esc(e.text)}</span></li>`;
+}).join("");
+
+/* ======================= inspect dialog ======================= */
+const dlg = document.getElementById("dlg");
+function inspect(id) {
+  const c = byId[id]; if (!c) return;
+  const sq = [...(c.squad || [])].sort((a, b) => b.life - a.life);
+  const extraCol = sq.some(m => m.tier) ? "Tier" : sq.some(m => m.open != null) ? "Open" : null;
+  document.getElementById("dlgBody").style.setProperty("--c", c.color);
+  document.getElementById("dlgBody").innerHTML = `
+    <header><canvas width="64" height="72" style="width:48px;height:54px;image-rendering:pixelated"></canvas>
+      <div><strong>${esc(c.name)}</strong><div class="sm" style="color:var(--muted)">${esc(c.cls)} · ${esc(c.sport)} · ${esc(c.status)} · LV ${c.level}</div></div>
+      <button class="btn x" onclick="dlg.close()">CLOSE ✕</button></header>
+    <p>${esc(c.note)}</p>
+    <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${c.stats.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>
+    ${sq.length ? `<div class="tbl"><table><thead><tr><th>${esc(c.squad_name.replace(/s$/, ""))}</th><th>Setup</th><th>Stage</th><th>Bets</th><th>P&amp;L</th><th>Life</th>${extraCol ? `<th>${extraCol}</th>` : ""}</tr></thead><tbody>
+      ${sq.map(m => `<tr><td>${esc(m.id)}</td><td>${esc(m.label)}</td><td>${esc(m.stage)}</td><td class="n">${m.n}</td>
+        <td class="n ${sgn(m.pnl)}">${money(m.pnl)}</td>
+        <td class="n">$${m.life.toFixed(2)}<span class="lb"><i style="width:${Math.min(100, m.life / 2.5)}%;background:${m.life >= 250 ? "var(--lime)" : m.life >= 150 ? "var(--gold)" : "var(--red)"}"></i></span></td>
+        ${extraCol ? `<td>${esc(extraCol === "Tier" ? (m.tier || "–") : m.open)}</td>` : ""}</tr>`).join("")}
+    </tbody></table></div>` : ""}
+    <div><div class="lbl" style="font:600 .64rem/1.2 var(--body);color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">What it's saying</div>
+      <ul style="margin:0;padding-left:18px;color:var(--muted)">${c.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul></div>
+    ${c.page ? `<a class="btn" href="${c.page}" style="justify-self:start">OPEN ${esc(c.sport)} PAGE →</a>` : ""}`;
+  portrait(dlg.querySelector("header canvas"), c.sprite, c.ko);
+  dlg.showModal();
+}
+dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+document.addEventListener("click", e => { const b = e.target.closest("[data-inspect]"); if (b) inspect(b.dataset.inspect); });
+
+/* ======================= arena stage ======================= */
+const stage = document.getElementById("stage"), cv = document.getElementById("cv"), ctx = cv.getContext("2d"), ov = document.getElementById("ov");
+let W = 0, H = 0, HZ = 0, P = 4, dpr = 1;
+const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random() * .4, s: Math.random() < .15 ? 2 : 1, p: Math.random() * 6 }));
+let city = [];
+function resize() {
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  const oldW = W;
+  W = stage.clientWidth; H = stage.clientHeight; HZ = Math.round(H * .44);
+  P = W < 520 ? 3 : W < 860 ? 3.6 : 4.6;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
+  city = []; let x = -10;
+  while (x < W + 20) {
+    const w = 18 + Math.random() * 46, h = 24 + Math.random() * (H * .2) * (Math.abs(x - W / 2) / W * 1.6 + .3);
+    const win = []; for (let wy = 6; wy < h - 4; wy += 7) for (let wx = 4; wx < w - 4; wx += 6) if (Math.random() < .28) win.push([wx, wy, Math.random() < .5 ? "#3ef0ff" : "#ff3ea5", Math.random() * 9]);
+    city.push({ x, w, h, win }); x += w + 2 + Math.random() * 6;
+  }
+  bots.forEach(b => {
+    b.homeX = Math.min(W - 40, Math.max(40, b.homeX0 * W));
+    if (!oldW || b.c.ko) b.x = b.tx = b.homeX;
+    else { b.x = Math.min(W - 30, Math.max(30, b.x * W / oldW)); b.tx = Math.min(W - 30, Math.max(30, b.tx * W / oldW)); }
+  });
+}
+const floorY = f => HZ + 46 + f * (H - HZ - 70);
+
+function drawBg(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, HZ);
+  g.addColorStop(0, "#04051a"); g.addColorStop(.6, "#160a3a"); g.addColorStop(1, "#3d0f52");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, HZ);
+  for (const s of stars) { ctx.globalAlpha = .35 + .65 * Math.abs(Math.sin(t * .0008 + s.p)); ctx.fillStyle = "#cfd6ff"; ctx.fillRect(Math.round(s.x * W), Math.round(s.y * H), s.s, s.s); }
+  ctx.globalAlpha = 1;
+  // striped sun
+  const R = Math.min(W * .16, H * .26), cx = W / 2, cy = HZ - 4;
+  const sg = ctx.createLinearGradient(0, cy - R, 0, cy);
+  sg.addColorStop(0, "#ffe25a"); sg.addColorStop(.55, "#ff7a3d"); sg.addColorStop(1, "#ff2f8e");
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, Math.PI, 0); ctx.closePath(); ctx.clip();
+  ctx.fillStyle = sg; ctx.fillRect(cx - R, cy - R, R * 2, R);
+  ctx.fillStyle = "#2a0c46";
+  for (let i = 0; i < 7; i++) { const yy = cy - R * .55 + i * R * .09 + ((t * .01) % (R * .09)); ctx.fillRect(cx - R, yy, R * 2, 1 + i * .7); }
+  ctx.restore();
+  ctx.shadowColor = "#ff3ea5"; ctx.shadowBlur = 40; ctx.fillStyle = "rgba(255,62,165,.0)"; ctx.fillRect(cx - R, cy - 2, R * 2, 2); ctx.shadowBlur = 0;
+  // skyline
+  for (const b of city) {
+    ctx.fillStyle = "#0a0b22"; ctx.fillRect(Math.round(b.x), Math.round(HZ - b.h), Math.round(b.w), Math.round(b.h));
+    ctx.fillStyle = "rgba(155,123,255,.25)"; ctx.fillRect(Math.round(b.x), Math.round(HZ - b.h), Math.round(b.w), 1);
+    for (const [wx, wy, col, ph] of b.win) {
+      if (Math.sin(t * .0006 + ph) < -.6) continue;
+      ctx.fillStyle = col; ctx.globalAlpha = .55; ctx.fillRect(Math.round(b.x + wx), Math.round(HZ - b.h + wy), 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // floor + perspective grid
+  const fg = ctx.createLinearGradient(0, HZ, 0, H);
+  fg.addColorStop(0, "#1a0630"); fg.addColorStop(1, "#05061a");
+  ctx.fillStyle = fg; ctx.fillRect(0, HZ, W, H - HZ);
+  ctx.strokeStyle = "rgba(255,62,165,.55)"; ctx.lineWidth = 1;
+  const off = reduce ? 0 : (t * .00035) % 1;
+  for (let i = 0; i < 14; i++) {
+    const z = (i + off) / 14, y = HZ + (H - HZ) * z * z;
+    ctx.globalAlpha = .15 + z * .6; ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(62,240,255,.45)";
+  for (let i = -16; i <= 16; i++) {
+    ctx.globalAlpha = .35; ctx.beginPath(); ctx.moveTo(W / 2 + i * 14, HZ); ctx.lineTo(W / 2 + i * W * .16, H); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  const hg = ctx.createLinearGradient(0, HZ - 3, 0, HZ + 6); hg.addColorStop(0, "rgba(255,62,165,0)"); hg.addColorStop(.4, "rgba(255,120,200,.9)"); hg.addColorStop(1, "rgba(255,62,165,0)");
+  ctx.fillStyle = hg; ctx.fillRect(0, HZ - 3, W, 9);
+}
+
+/* ---- bots ---- */
+const order = ["nfl", "cfb", "nhl", "life", "mlb", "mm"].filter(id => byId[id]).concat(chars.map(c => c.id).filter(id => !["nfl", "cfb", "nhl", "life", "mlb", "mm"].includes(id)));
+const bots = order.map((id, i) => {
+  const c = byId[id], f = .25 + Math.random() * .6;
+  const b = { c, homeX0: (i + .5) / order.length, f, tf: f, x: 0, tx: 0, dir: Math.random() < .5 ? -1 : 1, state: c.ko ? "ko" : "idle",
+    wait: 500 + Math.random() * 2000, walkT: 0, busy: false, float: c.sprite === "heart" || c.sprite === "eye", hop: 0, ring: 0, pop: 4000 + Math.random() * 9000 };
+  b.tag = document.createElement("div"); b.tag.className = "tag";
+  const hp = Math.max(0, Math.min(1, c.hp));
+  b.tag.innerHTML = `${c.ko ? '<span class="chip">K.O.</span>' : c.resting ? '<span class="chip rest">OFF-SEASON</span>' : c.scout ? '<span class="chip scout">SCOUT</span>' : ""}<span><span class="lv">LV${c.level}</span><span class="nm"> ${esc(c.name)}</span></span>
+    <span class="minibar"><i class="${c.scout ? "" : hpClass(hp)}" style="width:${hp * 100}%;${c.scout ? "background:var(--cyan)" : ""}"></i>${c.shield > 0 ? `<s style="width:${Math.min(14, c.shield * 100 * 3)}px"></s>` : ""}</span>`;
+  b.bub = document.createElement("div"); b.bub.className = "bubble"; b.bub.style.setProperty("--c", c.color);
+  ov.append(b.tag, b.bub);
+  return b;
+});
+const floaters = [], rings = [], sparks = [];
+
+function say(b, text, ms = 3800) {
+  b.bub.innerHTML = `<b style="color:${b.c.color === "#ffd23e" ? "#8a6a00" : "#3a3f7a"}">${esc(b.c.name)}</b>${esc(text)}`;
+  b.bub.classList.add("show"); b.sayUntil = performance.now() + ms;
+}
+function floatText(b, text, col) { floaters.push({ x: b.x, y: floorY(b.f) - 90, text, col, t: 0 }); }
+function burst(b, col) { for (let i = 0; i < 14; i++) sparks.push({ x: b.x, y: floorY(b.f) - 40, vx: (Math.random() - .5) * 160, vy: -60 - Math.random() * 120, t: 0, col }); }
+
+function react(a, b) {
+  const A = a.c, B = b.c;
+  if (B.ko) return pick([`SPREADER, get up! ...it's a hard halt, isn't it.`, `I'll avenge you, SPREADER. On paper.`, `Somebody find SPREADER's human. It needs a CLEAR.`]);
+  if (A.scout) return pick([`Scanning ${B.name}... ${B.n} results logged. Prediction: needs more data.`, `${B.name}, my sensors read ${B.pnl != null ? money(B.pnl) : B.hp_text}. Interesting.`, `${B.name}, the market is still smarter than both of us.`]);
+  return pick(A.lines);
+}
+function reply(a, b) {
+  const A = a.c, B = b.c;
+  if (B.ko) return pick(B.lines);
+  if (B.scout) return pick([`My records say: ${pick(B.lines)}`, `I just watch, ${A.name}. ${pick(B.lines)}`]);
+  if (A.roi != null && B.roi != null && !A.scout && Math.random() < .55) {
+    if (B.roi > A.roi) return pick([`Cute. I'm at ${pct(B.roi)} ROI.`, `Respectfully, ${pct(B.roi)} beats ${pct(A.roi)}.`, `Not bad, ${A.name}. I'm ${money(B.pnl)} though.`]);
+    return pick([`Show-off. I'm at ${pct(B.roi)}...`, `GG, ${A.name}. My ${pct(B.roi)} will turn around.`, `Okay, okay. ${pct(A.roi)} is better than my ${pct(B.roi)}.`]);
+  }
+  return pick(B.lines);
+}
+
+let convo = null, director = 2500;
+function startConvo() {
+  const free = bots.filter(b => !b.c.ko && !b.busy);
+  if (free.length < 1) return;
+  const a = pick(free);
+  const others = bots.filter(b => b !== a && !b.busy && (b.c.ko ? Math.random() < .45 : true));
+  if (!others.length) return;
+  const b = pick(others);
+  a.busy = b.busy = true;
+  const side = a.x < b.x ? -1 : 1;
+  a.tx = Math.min(W - 30, Math.max(30, b.x + side * (b.c.ko ? 64 : 56))); a.tf = b.f; a.state = "walk";
+  if (!b.c.ko) b.state = "idle";
+  convo = { a, b, phase: "approach", t: 0 };
+}
+function stepConvo(dt) {
+  const k = convo; k.t += dt;
+  if (k.phase === "approach") {
+    if (k.a.state !== "walk" || k.t > 9000) {
+      k.a.dir = k.b.x > k.a.x ? 1 : -1; if (!k.b.c.ko) k.b.dir = -k.a.dir;
+      say(k.a, react(k.a, k.b)); if (k.a.c.sprite === "eye") k.scan = true;
+      k.phase = "a"; k.t = 0;
+    }
+  } else if (k.phase === "a" && k.t > 3600) {
+    say(k.b, reply(k.a, k.b)); k.phase = "b"; k.t = 0; k.scan = false;
+    if (!k.b.c.ko && k.b.c.pnl != null && Math.random() < .5) floatText(k.b, money(k.b.c.pnl), k.b.c.pnl >= 0 ? "#7dff6a" : "#ff4d5e");
+  } else if (k.phase === "b" && k.t > 3800) {
+    if (Math.random() < .5 && !k.a.c.ko) { k.a.hop = 1; }
+    k.a.busy = k.b.busy = false; k.a.wait = 1500 + Math.random() * 2500; convo = null; director = 2200 + Math.random() * 2500;
+  }
+}
+
+function update(dt, now) {
+  if (!convo) { director -= dt; if (director <= 0 && !reduce) startConvo(); } else stepConvo(dt);
+  for (const b of bots) {
+    if (b.sayUntil && now > b.sayUntil) { b.bub.classList.remove("show"); b.sayUntil = 0; }
+    if (b.c.ko) continue;
+    if (b.state === "walk") {
+      const dx = b.tx - b.x, df = b.tf - b.f, sp = (b.c.resting ? 34 : 58) * (W < 520 ? .8 : 1);
+      const d = Math.hypot(dx, df * (H - HZ));
+      if (d < 2) { b.state = "idle"; b.wait = 1200 + Math.random() * 3000; }
+      else { const s = Math.min(1, sp * dt / 1000 / d); b.x += dx * s; b.f += df * s; b.dir = dx >= 0 ? 1 : -1; b.walkT += dt; }
+    } else if (!b.busy && !reduce) {
+      b.wait -= dt;
+      if (b.wait <= 0) {
+        const span = W / bots.length * (b.c.resting ? .35 : .9);
+        b.tx = Math.min(W - 30, Math.max(30, b.homeX + (Math.random() - .5) * span * 2)); b.tf = .15 + Math.random() * .75; b.state = "walk";
+      }
+    }
+    if (b.hop > 0) b.hop = Math.max(0, b.hop - dt / 600);
+    b.pop -= dt;
+    if (b.pop <= 0 && !b.busy && !b.sayUntil && !reduce) {
+      b.pop = 9000 + Math.random() * 12000;
+      if (b.c.crown && Math.random() < .5) { b.hop = 1; burst(b, "#ffd23e"); floatText(b, "♛ " + pct(b.c.roi), "#ffd23e"); }
+      else if (b.c.pnl != null && b.c.id !== "mm") floatText(b, money(b.c.pnl), b.c.pnl >= 0 ? "#7dff6a" : "#ff4d5e");
+      else if (Math.random() < .5) say(b, pick(b.c.lines), 3200);
+    }
+    if (b.c.sprite === "heart") { b.ring -= dt; if (b.ring <= 0) { rings.push({ b, t: 0 }); b.ring = 1150; } }
+  }
+  floaters.forEach(f => f.t += dt); sparks.forEach(s => { s.t += dt; s.x += s.vx * dt / 1000; s.y += s.vy * dt / 1000; s.vy += 260 * dt / 1000; });
+  rings.forEach(r => r.t += dt);
+  for (const arr of [floaters, sparks, rings]) for (let i = arr.length - 1; i >= 0; i--) if (arr[i].t > (arr === floaters ? 1800 : arr === rings ? 1100 : 900)) arr.splice(i, 1);
+}
+
+function drawBot(b, now) {
+  const c = b.c, y = floorY(b.f), sc = (.82 + .3 * b.f) * P;
+  const frame = b.state === "walk" ? Math.floor(b.walkT / 160) % 2 : c.sprite === "eye" ? Math.floor(now / 120) % 2 : 0;
+  const img = bake(c.sprite, frame, c.ko);
+  const w = 16 * sc, h = img.height * sc;
+  const bob = c.ko ? 0 : b.float ? Math.sin(now / 420 + b.homeX0 * 9) * 4 - 16 : b.state === "idle" ? Math.round(Math.sin(now / 380 + b.homeX0 * 7)) : 0;
+  const hop = b.hop > 0 ? Math.sin(b.hop * Math.PI) * 26 : 0;
+  // shadow + home glow
+  ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.beginPath(); ctx.ellipse(b.x, y, w * .38 * (b.float ? .8 : 1), sc * 1.6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = c.color; ctx.globalAlpha = .35 + .15 * Math.sin(now / 500); ctx.beginPath(); ctx.ellipse(b.x, y, w * .5, sc * 2.2, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+  // overshield aura
+  if (c.shield > 0 && !c.ko) {
+    ctx.save(); ctx.globalAlpha = .18 + .1 * Math.sin(now / 300); ctx.strokeStyle = "#3ef0ff"; ctx.lineWidth = 2; ctx.shadowColor = "#3ef0ff"; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.ellipse(b.x, y - h / 2 + bob - hop, w * .62, h * .62, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  ctx.save();
+  if (c.ko) {
+    ctx.translate(b.x, y - w / 2 + 2 * sc); ctx.rotate(-Math.PI / 2); ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  } else {
+    ctx.translate(b.x, y - h + bob - hop); if (b.dir < 0 && c.sprite !== "eye" && c.sprite !== "heart") { ctx.scale(-1, 1); }
+    ctx.drawImage(img, -w / 2, 0, w, h);
+  }
+  ctx.restore();
+  b.head = y - (c.ko ? 12 * sc : h) + (c.ko ? 0 : bob - hop);
+  if (c.crown) ctx.drawImage(CROWN_C, b.x - 3.5 * sc * .8, b.head - 6 * sc * .8 + Math.sin(now / 300) * 2, 7 * sc * .8, 4 * sc * .8);
+  if (c.ko) {
+    for (let i = 0; i < 3; i++) {
+      const a = now / 500 + i * 2.1, sx = b.x + Math.cos(a) * 18, sy = b.head - 8 + Math.sin(a) * 5;
+      ctx.fillStyle = "#ffd23e"; ctx.fillRect(sx - 1, sy - 3, 2, 6); ctx.fillRect(sx - 3, sy - 1, 6, 2);
+    }
+    ctx.font = `${Math.round(sc * 2.6)}px "Press Start 2P", monospace`; ctx.fillStyle = "rgba(200,210,255," + (.5 + .5 * Math.sin(now / 400)) + ")";
+    ctx.fillText("z", b.x + 22, b.head - 14 - (now / 40 % 14)); ctx.fillText("Z", b.x + 30, b.head - 26 - (now / 60 % 10));
+  }
+}
+
+function frame(now) {
+  if (!running) return;
+  const dt = Math.min(50, now - (frame.last || now)); frame.last = now;
+  update(dt, now);
+  drawBg(now);
+  // oracle scan beam
+  if (convo && convo.scan) {
+    const a = convo.a, b = convo.b, ay = a.head + 24, by = b.head + 30;
+    ctx.save(); ctx.globalAlpha = .18 + .08 * Math.sin(now / 80); ctx.fillStyle = "#3ef0ff";
+    ctx.beginPath(); ctx.moveTo(a.x, ay); ctx.lineTo(b.x - 22, by - 30); ctx.lineTo(b.x + 22, by + 30); ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  for (const r of rings) {
+    const b = r.b, p = r.t / 1100, y = floorY(b.f);
+    ctx.strokeStyle = `rgba(255,79,154,${(1 - p) * .7})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(b.x, y, 20 + p * 60, (20 + p * 60) * .28, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  [...bots].sort((a, b) => a.f - b.f).forEach(b => drawBot(b, now));
+  for (const s of sparks) { ctx.globalAlpha = 1 - s.t / 900; ctx.fillStyle = s.col; ctx.fillRect(s.x, s.y, 3, 3); }
+  ctx.globalAlpha = 1;
+  for (const f of floaters) {
+    const p = f.t / 1800; ctx.globalAlpha = p < .8 ? 1 : (1 - p) * 5;
+    ctx.font = `${W < 520 ? 9 : 11}px "Press Start 2P", monospace`; ctx.textAlign = "center";
+    ctx.fillStyle = "#000"; ctx.fillText(f.text, f.x + 2, f.y - p * 40 + 2); ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y - p * 40);
+    ctx.textAlign = "start";
+  }
+  ctx.globalAlpha = 1;
+  // DOM overlays
+  for (const b of bots) {
+    const tw = b.tag.offsetWidth; b.tag.style.left = Math.min(W - tw / 2 - 4, Math.max(tw / 2 + 4, b.x)) + "px"; b.tag.style.top = (b.head - (b.c.crown ? 6 * P : 8)) + "px";
+    if (b.sayUntil) {
+      const bw = b.bub.offsetWidth, left = Math.min(W - bw / 2 - 8, Math.max(bw / 2 + 8, b.x));
+      b.bub.style.left = left + "px"; b.bub.style.top = Math.max(b.bub.offsetHeight + 6, b.head - 44) + "px";
+      b.bub.style.setProperty("--tail", (50 + (b.x - left) / bw * 100) + "%");
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+let running = true;
+new IntersectionObserver(es => { const vis = es[0].isIntersecting; if (vis && !running) { running = true; frame.last = 0; requestAnimationFrame(frame); } running = vis; }).observe(stage);
+cv.addEventListener("click", e => {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const hit = [...bots].sort((a, b) => b.f - a.f).find(b => Math.abs(b.x - x) < 16 * P * .55 && y > b.head - 10 && y < floorY(b.f) + 6);
+  if (hit) {
+    const card = document.getElementById("card-" + hit.c.id);
+    hit.hop = 1; burst(hit, hit.c.color); say(hit, pick(hit.c.lines), 3000);
+    card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" }); card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash");
+  }
+});
+cv.addEventListener("mousemove", e => {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  cv.style.cursor = bots.some(b => Math.abs(b.x - x) < 16 * P * .55 && y > b.head - 10 && y < floorY(b.f) + 6) ? "pointer" : "default";
+});
+new ResizeObserver(() => { if (stage.clientWidth !== W || stage.clientHeight !== H) resize(); }).observe(stage);
+resize();
+setTimeout(() => { const b = bots.find(b => b.c.crown) || bots[0]; if (!reduce) { say(b, pick(b.c.lines)); b.hop = 1; burst(b, "#ffd23e"); } }, 900);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
