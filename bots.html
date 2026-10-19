@@ -378,7 +378,7 @@ function drawTraderBack(g, T, p, accent) {
     g.moveTo(-sw + lean, sy + 10); g.bezierCurveTo(-sw - 2 + lean, sy - 6, -sw + 8 + lean, sy - 17, -17 + lean, sy - 21);
     g.lineTo(17 + lean, sy - 21); g.bezierCurveTo(sw - 8 + lean, sy - 17, sw + 2 + lean, sy - 6, sw + lean, sy + 10);
     g.lineTo(sw - 8, 46); g.lineTo(-sw + 8, 46); g.closePath(); };
-  g.save(); g.shadowColor = rgbaHex(L, .5); g.shadowBlur = 12; g.shadowOffsetY = -2; torso(); g.fillStyle = jk; g.fill(); g.restore();
+  g.save(); g.shadowColor = rgbaHex(L, .22); g.shadowBlur = 7; g.shadowOffsetY = -1.5; torso(); g.fillStyle = jk; g.fill(); g.restore();
   const tg = g.createLinearGradient(0, sy - 21, 0, 46); tg.addColorStop(0, jkHi); tg.addColorStop(.3, jk); tg.addColorStop(1, shade(T.jacket, -.75));
   torso(); g.fillStyle = tg; g.fill();
   g.save(); torso(); g.clip();
@@ -435,7 +435,7 @@ function drawTraderBack(g, T, p, accent) {
     }
     g.closePath();
   };
-  g.save(); g.shadowColor = rgbaHex(L, .6); g.shadowBlur = 10; g.shadowOffsetY = -1; hairPath(); g.fillStyle = shade(T.hair, -.15); g.fill(); g.restore();
+  g.save(); g.shadowColor = rgbaHex(L, .28); g.shadowBlur = 6; g.shadowOffsetY = -1; hairPath(); g.fillStyle = shade(T.hair, -.15); g.fill(); g.restore();
   hairPath(); g.fillStyle = vg(g, hy - 22, hy + 24, shade(T.hairHi, -.05), shade(T.hair, -.3)); g.fill();
   g.save(); hairPath(); g.clip();
   if (st === "buzz" || st === "fade") {                                        // short hair: stipple
@@ -482,11 +482,11 @@ function drawTraderBack(g, T, p, accent) {
     g.quadraticCurveTo(36, cy - 2, 34, cy + 6); g.bezierCurveTo(30, cy + 50, 38, cy + 84, 34, cy + 114); g.lineTo(-34, cy + 114);
     g.bezierCurveTo(-38, cy + 84, -30, cy + 50, -34, cy + 6); g.closePath(); };
   for (const s of [-1, 1]) { g.fillStyle = "#101115"; rrect(g, s * 47 - 9, cy + 50, 18, 7, 3); g.fill(); g.fillRect(s * 47 - 2, cy + 56, 4, 40); }   // armrests
-  chair(); g.fillStyle = "rgba(9,10,13,.86)"; g.fill();
-  g.save(); chair(); g.clip(); g.strokeStyle = "rgba(255,255,255,.05)"; g.lineWidth = .7; g.beginPath();
+  chair(); g.fillStyle = "rgba(7,8,10,.94)"; g.fill();
+  g.save(); chair(); g.clip(); g.strokeStyle = "rgba(255,255,255,.028)"; g.lineWidth = .7; g.beginPath();
   for (let k = -90; k < 60; k += 3.4) { g.moveTo(k, cy - 10); g.lineTo(k + 60, cy + 120); g.moveTo(k + 60, cy - 10); g.lineTo(k, cy + 120); }
   g.stroke();
-  g.fillStyle = vg(g, cy, cy + 40, "rgba(255,255,255,.05)", "rgba(255,255,255,0)"); g.fillRect(-40, cy - 8, 80, 50);
+  g.fillStyle = vg(g, cy, cy + 40, "rgba(255,255,255,.03)", "rgba(255,255,255,0)"); g.fillRect(-40, cy - 8, 80, 50);
   g.fillStyle = "#14151a"; rrect(g, -31, cy + 62, 62, 13, 6); g.fill();       // lumbar support
   g.restore();
   chair(); g.strokeStyle = "#1b1d23"; g.lineWidth = 4.5; g.stroke();
