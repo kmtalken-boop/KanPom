@@ -294,7 +294,7 @@ footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--lin
 
   const R = D.record;
   $("foot").innerHTML = `<div>Paper only: no real bets are placed here and nothing on this page is betting advice.</div>
-    <div>Live paper record of the older production model (reference bankroll, since 2026-07-29): ${R.n} bets, ROI ${R.roi_pct === null ? "n/a" : sgn(R.roi_pct, 2) + "%"}, average closing-line value ${R.clv_pct === null ? "n/a" : sgn(R.clv_pct, 2) + "%"}. That record prices bets at the ask without Polymarket's taker fee.</div>
+    ${R ? `<div>Live paper record of the older production model (reference bankroll, since 2026-07-29): ${R.n} bets, ROI ${R.roi_pct === null ? "n/a" : sgn(R.roi_pct, 2) + "%"}, average closing-line value ${R.clv_pct === null ? "n/a" : sgn(R.clv_pct, 2) + "%"}. That record prices bets at the ask without Polymarket's taker fee.</div>` : ""}
     <div>Data: MLB Stats API (schedule, lineups, umpires, weather, box scores), Baseball Savant / Statcast, Polymarket prices. Replacement level, plate appearances per slot and 10-runs-per-win are standard conventions, not fit to this model's data.</div>`;
 })();
 </script>
