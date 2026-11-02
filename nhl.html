@@ -177,9 +177,9 @@ footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--lin
   $("title").textContent = "Tonight's slate · " + day;
   $("meta").innerHTML = [
     `<span>${D.games.length} games</span>`,
-    `<span>Model <span class="num">${esc(D.champion)}</span> (${esc(D.blocks.join(", "))})</span>`,
-    `<span>Player ratings as of ${esc(D.ratings_asof)}</span>`,
-    `<span>Built ${new Date(D.generated).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} CT</span>`
+    D.champion ? `<span>Model <span class="num">${esc(D.champion)}</span> (${esc((D.blocks || []).join(", "))})</span>` : "",
+    D.ratings_asof ? `<span>Player ratings as of ${esc(D.ratings_asof)}</span>` : "",
+    !D.generated ? "" : `<span>Built ${new Date(D.generated).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} CT</span>`
   ].join("");
 
   const gStat = (g) => g.status ? g.status : "projected";

@@ -152,12 +152,12 @@ footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--lin
   const sgn = (x, d = 2) => (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(d);
   const day = new Date(D.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   $("title").textContent = "Slate · " + day;
-  $("minev").textContent = D.min_ev_pct;
+  $("minev").textContent = D.min_ev_pct ?? "";
   $("meta").innerHTML = [
     `<span>${D.games.length} games</span>`,
-    `<span>Win model <span class="num">${esc(D.model.ml.id)}</span> (${esc(D.model.ml.blocks.join(", "))})</span>`,
-    `<span>Totals model <span class="num">${esc(D.model.totals.id)}</span> (${esc(D.model.totals.blocks.join(", "))})</span>`,
-    `<span>Built ${new Date(D.generated).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} CT</span>`
+    D.model ? `<span>Win model <span class="num">${esc(D.model.ml.id)}</span> (${esc(D.model.ml.blocks.join(", "))})</span>` : "",
+    D.model ? `<span>Totals model <span class="num">${esc(D.model.totals.id)}</span> (${esc(D.model.totals.blocks.join(", "))})</span>` : "",
+    !D.generated ? "" : `<span>Built ${new Date(D.generated).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} CT</span>`
   ].join("");
 
   const games = D.games.slice().sort((a, b) => a.start.localeCompare(b.start));
