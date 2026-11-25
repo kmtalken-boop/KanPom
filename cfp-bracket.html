@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}</style>
+<title>KanPom CFP Bracket</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* layout: selection-room sheet — bracket first, then the odds board, then how the seeds were made */
+:root{
+  --bg:#f4f5f1; --panel:#ffffff; --ink:#18202b; --muted:#5d6672; --line:#d9ddd5;
+  --turf:#2d6a3e; --turf-soft:#e3efe5; --gold:#a8791f; --gold-soft:#f5ecd8; --loss:#9b3b32;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161b; --panel:#192028; --ink:#e7ebe6; --muted:#9aa4ae; --line:#2b3540;
+  --turf:#6cc489; --turf-soft:#1c3324; --gold:#e0b45a; --gold-soft:#3a2f17; --loss:#e58a80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161b; --panel:#192028; --ink:#e7ebe6; --muted:#9aa4ae; --line:#2b3540;
+  --turf:#6cc489; --turf-soft:#1c3324; --gold:#e0b45a; --gold-soft:#3a2f17; --loss:#e58a80; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.05}
+h1{font-size:clamp(2.4rem,6vw,3.6rem);text-transform:uppercase}
+h2{font-size:1.75rem;text-transform:uppercase}
+h3{font-size:1.15rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+p{margin:0;max-width:68ch}
+.lede{color:var(--muted);font-size:1.02rem}
+.eyebrow{font-family:var(--display);font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--turf);font-size:.95rem}
+header{display:flex;flex-direction:column;gap:10px}
+.num{font-variant-numeric:tabular-nums}
+section{display:flex;flex-direction:column;gap:14px}
+
+/* bracket */
+.bracket-scroll{overflow-x:auto;padding-bottom:6px}
+.bracket{display:grid;grid-template-columns:repeat(4,minmax(210px,1fr));gap:18px;min-width:900px}
+.col{display:flex;flex-direction:column;gap:10px}
+.col h3{padding-bottom:4px;border-bottom:1px solid var(--line)}
+.col .games{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:12px}
+.game{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.row{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center;padding:7px 10px}
+.row+.row{border-top:1px solid var(--line)}
+.seed{font-family:var(--display);font-weight:700;font-size:1.05rem;color:var(--muted);text-align:center}
+.team{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team small{font-weight:400;color:var(--muted);margin-left:6px}
+.pct{font-size:.85rem;color:var(--muted)}
+.row.win{background:var(--turf-soft)} .row.win .pct{color:var(--turf);font-weight:600}
+.row.bye .seed{color:var(--gold)}
+.site{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:4px 10px;background:var(--bg);border-top:1px solid var(--line)}
+.champ{background:var(--gold-soft);border:1px solid var(--gold);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.champ .label{font-family:var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:600;font-size:.85rem}
+.champ .name{font-family:var(--display);font-size:1.7rem;font-weight:700}
+.key{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.85rem;color:var(--muted)}
+.chip{display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
+.chip.auto{color:var(--turf)} .chip.bye{color:var(--gold)} .chip.al{color:var(--muted)}
+
+/* tables */
+.tscroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap}
+th{font-family:var(--display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-size:.85rem;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+td:first-child,th:first-child,td.l,th.l{text-align:left}
+tbody tr+tr td{border-top:1px solid var(--line)}
+.bar{display:inline-block;height:6px;border-radius:3px;background:var(--turf);vertical-align:middle;margin-right:6px;opacity:.85}
+.dim{color:var(--muted)}
+.diff-up{color:var(--turf);font-weight:600} .diff-dn{color:var(--loss);font-weight:600}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.two>*{min-width:0}
+@media (max-width:820px){.two{grid-template-columns:1fr}}
+ol.steps{margin:0;padding-left:1.2rem;display:flex;flex-direction:column;gap:8px;max-width:72ch}
+ul.plain{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.callout{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+footer{font-size:.82rem;color:var(--muted)}
+.sitenav{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.85rem}
+.sitenav a{color:var(--muted);text-decoration:none}
+.sitenav a:hover,.sitenav a:focus-visible{color:var(--turf);text-decoration:underline}
+.sitenav a.on{color:var(--turf);font-weight:600}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <nav class="sitenav"><a href="index.html">College Football</a><a href="nfl.html">NFL</a><a href="nhl.html">NHL</a><a href="mlb.html">MLB</a><a href="nba-slate.html">NBA</a><a href="cbb.html">CBB</a><a href="cfb-lab.html">CFB Lab</a><a href="cfb-slate.html">CFB Game Breakdowns</a><a href="cfp-bracket.html" class="on">CFP Bracket</a><a href="bots.html">Bot Arena</a></nav>
+  <header>
+    <div class="eyebrow">KanPom · College Football Playoff · 2026</div>
+    <h1>KanPom CFP Bracket</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section>
+    <h2>Projected bracket</h2>
+    <p class="dim">The field on Selection Day (Dec 6) if every KanPom favorite wins in rivalry week and the title games, ranked by a committee emulator fit to the committee's own Nov 24 top 25. Percentages are KanPom win probabilities for that game. First-round games are on the higher seed's campus; the rest are neutral.</p>
+    <div class="key"><span><span class="chip bye">Bye</span> seeds 1–4</span><span><span class="chip auto">Auto</span> conference champion or Notre Dame</span><span><span class="chip al">At-large</span></span></div>
+    <div class="bracket-scroll"><div class="bracket" id="bracket"></div></div>
+  </section>
+
+  <section>
+    <h2>Playoff odds</h2>
+    <p class="dim" id="oddsnote"></p>
+    <div class="tscroll"><table id="odds"></table></div>
+  </section>
+
+  <section>
+    <h2>Three ways to seed it</h2>
+    <p class="dim">Our projected field next to the committee's own current bracket and a bracket where KanPom's ratings alone are the ranking (same selection rules, most likely conference champions).</p>
+    <div class="tscroll"><table id="compare"></table></div>
+  </section>
+
+  <div class="two">
+    <section>
+      <h2>How the committee picks</h2>
+      <ol class="steps">
+        <li><b>Thirteen voters, seven rounds of ballots.</b> Members list the teams they consider the best, then rank them a few at a time (three teams per round, then four) until 25 are ordered. Members are recused from voting on schools they are tied to.</li>
+        <li><b>Results first, then tiebreakers.</b> When teams look close, the protocol points to strength of schedule, head-to-head results, common opponents, conference championships and whether key players were missing. No metric is weighted, and record-quality measures that reward wins over strong teams were added in 2025.</li>
+        <li><b>Twelve teams under the 2026 rules.</b> The SEC, Big Ten, Big 12 and ACC champions get automatic bids, plus the top-ranked champion from the American, Conference USA, MAC, Mountain West, Pac-12 and Sun Belt. Notre Dame is in if it ranks in the top 12. The rest are at-large teams in ranking order.</li>
+        <li><b>Straight seeding.</b> Seeds follow the ranking, and the top four get byes whether or not they won their league. An automatic qualifier ranked outside the top 12 takes the last seeds. There is no reseeding and no rematch avoidance.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Reverse-engineering it</h2>
+      <div class="callout" id="emu"></div>
+      <div class="tscroll"><table id="emutab"></table></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Conference champions</h2>
+    <p class="dim">Simulated with KanPom. Where teams tie for a title-game spot, the tie goes to their record against each other, then KanPom. The real conference tiebreakers check common opponents and schedule strength before any computer ranking, so close Big Ten and SEC races here are approximate.</p>
+    <div class="tscroll"><table id="confs"></table></div>
+  </section>
+
+  <section class="callout">
+    <h3>Read this before quoting it</h3>
+    <ul class="plain">
+      <li>KanPom ratings stay fixed through the simulation. In reality a team that wins rivalry week and a title game gains rating, so favorites are slightly understated.</li>
+      <li>The emulator is fit to one committee ranking (Nov 24). It matches 11 of the committee's top 12, but at this point the committee hasn't yet seen a conference title game, so how much it rewards a title is a guess.</li>
+      <li>Some outlets describe the 2026 Group of Six bid as going to the top-ranked team from those six conferences rather than the top-ranked champion. This bracket uses the champion rule. Boise State is the pick under either reading.</li>
+      <li>The bracket shows a single scenario, every favorite winning, and that exact set of 12 teams comes up in about <span id="fieldshare"></span> of simulations. Use the odds table for anything probabilistic.</li>
+    </ul>
+  </section>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const D = {"generated": "2026-11-24", "n_sims": 20000, "emulator_weight_kanpom": 0.4, "fit": [{"a": 0.0, "rho": 0.7971774193548389, "top25_overlap": 19, "top12_overlap": 11, "mean_abs_rank_err": 4.28}, {"a": 0.05, "rho": 0.8213709677419356, "top25_overlap": 19, "top12_overlap": 11, "mean_abs_rank_err": 3.96}, {"a": 0.1, "rho": 0.8398220244716351, "top25_overlap": 20, "top12_overlap": 11, "mean_abs_rank_err": 3.96}, {"a": 0.15, "rho": 0.8522803114571746, "top25_overlap": 20, "top12_overlap": 11, "mean_abs_rank_err": 3.84}, {"a": 0.2, "rho": 0.8562847608453837, "top25_overlap": 20, "top12_overlap": 11, "mean_abs_rank_err": 3.68}, {"a": 0.25, "rho": 0.8689655172413792, "top25_overlap": 21, "top12_overlap": 11, "mean_abs_rank_err": 3.32}, {"a": 0.3, "rho": 0.8674876847290638, "top25_overlap": 21, "top12_overlap": 11, "mean_abs_rank_err": 3.36}, {"a": 0.35, "rho": 0.8798029556650244, "top25_overlap": 21, "top12_overlap": 11, "mean_abs_rank_err": 3.04}, {"a": 0.4, "rho": 0.8910782703886152, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 2.84}, {"a": 0.45, "rho": 0.8839627805145046, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 2.96}, {"a": 0.5, "rho": 0.8757525998905309, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 3.0}, {"a": 0.55, "rho": 0.8680897646414888, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 3.04}, {"a": 0.6, "rho": 0.8653530377668308, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 2.96}, {"a": 0.65, "rho": 0.8648056923918993, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 3.08}, {"a": 0.7, "rho": 0.856048166392994, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 3.08}, {"a": 0.75, "rho": 0.8555008210180624, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 3.12}, {"a": 0.8, "rho": 0.8336070060207991, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 3.32}, {"a": 0.85, "rho": 0.8253968253968254, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 3.24}, {"a": 0.9, "rho": 0.8210180623973727, "top25_overlap": 22, "top12_overlap": 11, "mean_abs_rank_err": 3.4}, {"a": 0.95, "rho": 0.8051450465243569, "top25_overlap": 22, "top12_overlap": 10, "mean_abs_rank_err": 3.52}, {"a": 1.0, "rho": 0.8013136288998358, "top25_overlap": 22, "top12_overlap": 10, "mean_abs_rank_err": 3.52}], "committee_now": ["Georgia", "Utah", "Texas", "Notre Dame", "Tennessee", "Alabama", "Miami", "Wake Forest", "UCLA", "BYU", "Texas Tech", "Oregon", "Iowa", "Indiana", "USC", "Arizona", "Oklahoma", "Houston", "Louisville", "Florida", "Ohio State", "Ole Miss", "Missouri", "Washington", "Nebraska"], "emulator_now": ["Georgia", "Utah", "Texas", "Alabama", "Notre Dame", "Miami", "Tennessee", "Wake Forest", "Texas Tech", "UCLA", "BYU", "Indiana", "Oregon", "Iowa", "Ole Miss", "Ohio State", "Oklahoma", "USC", "Boise State", "Florida", "LSU", "Louisville", "Missouri", "Auburn", "Arizona"], "kanpom_now": ["Georgia", "Alabama", "Notre Dame", "Tennessee", "Texas", "Utah", "Miami", "Wake Forest", "Oregon", "Indiana", "UCLA", "LSU", "Texas Tech", "Ohio State", "Louisville", "BYU", "Oklahoma", "Iowa", "Missouri", "Ole Miss", "Boise State", "USC", "Arizona", "Auburn", "Nebraska"], "champions": {"SEC": [{"team": "Georgia", "p": 0.74675}, {"team": "Texas", "p": 0.21345}, {"team": "Tennessee", "p": 0.0214}, {"team": "Alabama", "p": 0.0183}], "Big Ten": [{"team": "UCLA", "p": 0.4601}, {"team": "Oregon", "p": 0.30645}, {"team": "Indiana", "p": 0.2315}, {"team": "Iowa", "p": 0.00195}], "Big 12": [{"team": "Utah", "p": 0.6606}, {"team": "Texas Tech", "p": 0.3394}], "ACC": [{"team": "Miami", "p": 0.53175}, {"team": "Wake Forest", "p": 0.46825}], "American Athletic": [{"team": "UTSA", "p": 0.51965}, {"team": "Memphis", "p": 0.4682}, {"team": "North Texas", "p": 0.0093}, {"team": "East Carolina", "p": 0.00235}], "Conference USA": [{"team": "Liberty", "p": 0.8333}, {"team": "Jacksonville State", "p": 0.1667}], "Mid-American": [{"team": "Toledo", "p": 0.4007}, {"team": "Western Michigan", "p": 0.31565}, {"team": "Ohio", "p": 0.1652}, {"team": "Buffalo", "p": 0.11155}], "Mountain West": [{"team": "New Mexico", "p": 0.62115}, {"team": "North Dakota State", "p": 0.37885}], "Pac-12": [{"team": "Boise State", "p": 0.90305}, {"team": "San Diego State", "p": 0.09695}], "Sun Belt": [{"team": "Louisiana Tech", "p": 0.58475}, {"team": "Georgia Southern", "p": 0.25505}, {"team": "James Madison", "p": 0.1602}]}, "teams": [{"team": "Georgia", "conf": "SEC", "p_in": 1.0, "p_bye": 1.0, "exp_seed": 1.00175, "modal_seed": 1, "p_semi": 0.78425, "p_final": 0.5628, "p_title": 0.40045, "kp_rank": 1, "emu_rank": 1, "cfp_rank": 1}, {"team": "Texas", "conf": "SEC", "p_in": 1.0, "p_bye": 0.70105, "exp_seed": 3.8655, "modal_seed": 4, "p_semi": 0.4495, "p_final": 0.16885, "p_title": 0.06405, "kp_rank": 5, "emu_rank": 3, "cfp_rank": 3}, {"team": "Alabama", "conf": "SEC", "p_in": 1.0, "p_bye": 0.9032, "exp_seed": 3.2585, "modal_seed": 3, "p_semi": 0.62745, "p_final": 0.37, "p_title": 0.1749, "kp_rank": 2, "emu_rank": 4, "cfp_rank": 6}, {"team": "Miami", "conf": "ACC", "p_in": 1.0, "p_bye": 0.4457, "exp_seed": 5.8672, "modal_seed": 8, "p_semi": 0.34975, "p_final": 0.1346, "p_title": 0.0554, "kp_rank": 7, "emu_rank": 6, "cfp_rank": 7}, {"team": "Notre Dame", "conf": "FBS Independents", "p_in": 1.0, "p_bye": 0.23985, "exp_seed": 5.06, "modal_seed": 5, "p_semi": 0.49085, "p_final": 0.22105, "p_title": 0.11555, "kp_rank": 3, "emu_rank": 5, "cfp_rank": 4}, {"team": "Utah", "conf": "Big 12", "p_in": 1.0, "p_bye": 0.6846, "exp_seed": 3.31835, "modal_seed": 2, "p_semi": 0.4853, "p_final": 0.2168, "p_title": 0.0829, "kp_rank": 6, "emu_rank": 2, "cfp_rank": 2}, {"team": "Tennessee", "conf": "SEC", "p_in": 1.0, "p_bye": 0.0219, "exp_seed": 6.78975, "modal_seed": 7, "p_semi": 0.32035, "p_final": 0.14655, "p_title": 0.0508, "kp_rank": 4, "emu_rank": 7, "cfp_rank": 5}, {"team": "Wake Forest", "conf": "ACC", "p_in": 0.95475, "p_bye": 0.0037, "exp_seed": 7.3843414506415295, "modal_seed": 6, "p_semi": 0.19485, "p_final": 0.0841, "p_title": 0.0288, "kp_rank": 8, "emu_rank": 8, "cfp_rank": 8}, {"team": "Texas Tech", "conf": "Big 12", "p_in": 0.93735, "p_bye": 0.0, "exp_seed": 9.756601056168988, "modal_seed": 10, "p_semi": 0.07095, "p_final": 0.02225, "p_title": 0.0057, "kp_rank": 13, "emu_rank": 9, "cfp_rank": 11}, {"team": "Boise State", "conf": "Pac-12", "p_in": 0.88285, "p_bye": 0.0, "exp_seed": 12.0, "modal_seed": 12, "p_semi": 0.041, "p_final": 0.00665, "p_title": 0.00175, "kp_rank": 21, "emu_rank": 19, "cfp_rank": null}, {"team": "UCLA", "conf": "Big Ten", "p_in": 0.8282, "p_bye": 0.0, "exp_seed": 9.181538275778797, "modal_seed": 10, "p_semi": 0.0709, "p_final": 0.02435, "p_title": 0.00705, "kp_rank": 11, "emu_rank": 10, "cfp_rank": 9}, {"team": "Oregon", "conf": "Big Ten", "p_in": 0.5714, "p_bye": 0.0, "exp_seed": 9.975673783689185, "modal_seed": 11, "p_semi": 0.0556, "p_final": 0.02135, "p_title": 0.007, "kp_rank": 9, "emu_rank": 13, "cfp_rank": 12}, {"team": "Indiana", "conf": "Big Ten", "p_in": 0.43115, "p_bye": 0.0, "exp_seed": 10.020874405659283, "modal_seed": 11, "p_semi": 0.04075, "p_final": 0.0161, "p_title": 0.0049, "kp_rank": 10, "emu_rank": 12, "cfp_rank": 14}, {"team": "BYU", "conf": "Big 12", "p_in": 0.2704, "p_bye": 0.0, "exp_seed": 10.889238165680473, "modal_seed": 11, "p_semi": 0.0163, "p_final": 0.00445, "p_title": 0.00075, "kp_rank": 16, "emu_rank": 11, "cfp_rank": 10}, {"team": "Liberty", "conf": "Conference USA", "p_in": 0.0682, "p_bye": 0.0, "exp_seed": 12.0, "modal_seed": 12, "p_semi": 0.00115, "p_final": 5e-05, "p_title": 0.0, "kp_rank": 30, "emu_rank": 26, "cfp_rank": null}, {"team": "Louisiana Tech", "conf": "Sun Belt", "p_in": 0.03735, "p_bye": 0.0, "exp_seed": 12.0, "modal_seed": 12, "p_semi": 0.00055, "p_final": 0.0, "p_title": 0.0, "kp_rank": 32, "emu_rank": 29, "cfp_rank": null}, {"team": "UTSA", "conf": "American Athletic", "p_in": 0.0061, "p_bye": 0.0, "exp_seed": 12.0, "modal_seed": 12, "p_semi": 0.0002, "p_final": 0.0, "p_title": 0.0, "kp_rank": 43, "emu_rank": 30, "cfp_rank": null}, {"team": "Iowa", "conf": "Big Ten", "p_in": 0.00595, "p_bye": 0.0, "exp_seed": 10.991596638655462, "modal_seed": 11, "p_semi": 0.0002, "p_final": 5e-05, "p_title": 0.0, "kp_rank": 18, "emu_rank": 14, "cfp_rank": 13}, {"team": "New Mexico", "conf": "Mountain West", "p_in": 0.0042, "p_bye": 0.0, "exp_seed": 12.0, "modal_seed": 12, "p_semi": 0.0, "p_final": 0.0, "p_title": 0.0, "kp_rank": 39, "emu_rank": 32, "cfp_rank": null}, {"team": "North Dakota State", "conf": "Mountain West", "p_in": 0.00105, "p_bye": 0.0, "exp_seed": 12.0, "modal_seed": 12, "p_semi": 0.0, "p_final": 0.0, "p_title": 0.0, "kp_rank": 54, "emu_rank": 36, "cfp_rank": null}, {"team": "Ohio State", "conf": "Big Ten", "p_in": 0.0007, "p_bye": 0.0, "exp_seed": 11.0, "modal_seed": 11, "p_semi": 5e-05, "p_final": 0.0, "p_title": 0.0, "kp_rank": 14, "emu_rank": 16, "cfp_rank": 21}, {"team": "Memphis", "conf": "American Athletic", "p_in": 0.00015, "p_bye": 0.0, "exp_seed": 12.0, "modal_seed": 12, "p_semi": 0.0, "p_final": 0.0, "p_title": 0.0, "kp_rank": 47, "emu_rank": 46, "cfp_rank": null}, {"team": "Toledo", "conf": "Mid-American", "p_in": 0.0001, "p_bye": 0.0, "exp_seed": 12.0, "modal_seed": 12, "p_semi": 0.0, "p_final": 0.0, "p_title": 0.0, "kp_rank": 44, "emu_rank": 39, "cfp_rank": null}, {"team": "Oklahoma", "conf": "SEC", "p_in": 0.0001, "p_bye": 0.0, "exp_seed": 11.0, "modal_seed": 11, "p_semi": 5e-05, "p_final": 0.0, "p_title": 0.0, "kp_rank": 17, "emu_rank": 17, "cfp_rank": 17}], "projected_bracket": ["Georgia", "Alabama", "Utah", "Texas", "Notre Dame", "Miami", "Tennessee", "Wake Forest", "UCLA", "Texas Tech", "Oregon", "Boise State"], "chalk_bracket": ["Georgia", "Utah", "Alabama", "Miami", "Texas", "Notre Dame", "Tennessee", "Wake Forest", "Oregon", "UCLA", "Texas Tech", "Boise State"], "chalk_champions": {"SEC": "Georgia", "Big Ten": "Oregon", "Big 12": "Utah", "ACC": "Miami", "American Athletic": "UTSA", "Conference USA": "Liberty", "Mid-American": "Toledo", "Mountain West": "New Mexico", "Pac-12": "Boise State", "Sun Belt": "Louisiana Tech"}, "chalk_games": [{"round": "First round", "top": "Wake Forest", "bottom": "Oregon", "p_top": 0.645, "winner": "Wake Forest"}, {"round": "First round", "top": "Texas", "bottom": "Boise State", "p_top": 0.774, "winner": "Texas"}, {"round": "First round", "top": "Tennessee", "bottom": "UCLA", "p_top": 0.713, "winner": "Tennessee"}, {"round": "First round", "top": "Notre Dame", "bottom": "Texas Tech", "p_top": 0.789, "winner": "Notre Dame"}, {"round": "Quarterfinal", "top": "Georgia", "bottom": "Wake Forest", "p_top": 0.769, "winner": "Georgia"}, {"round": "Quarterfinal", "top": "Miami", "bottom": "Texas", "p_top": 0.51, "winner": "Miami"}, {"round": "Quarterfinal", "top": "Utah", "bottom": "Tennessee", "p_top": 0.517, "winner": "Utah"}, {"round": "Quarterfinal", "top": "Alabama", "bottom": "Notre Dame", "p_top": 0.53, "winner": "Alabama"}, {"round": "Semifinal", "top": "Georgia", "bottom": "Miami", "p_top": 0.747, "winner": "Georgia"}, {"round": "Semifinal", "top": "Utah", "bottom": "Alabama", "p_top": 0.399, "winner": "Alabama"}, {"round": "Final", "top": "Georgia", "bottom": "Alabama", "p_top": 0.641, "winner": "Georgia"}], "field_share": 0.33305, "chalk_rank": [{"team": "Georgia", "conf": "SEC", "score": 2.37, "sor": 2.68, "rec": "12-1"}, {"team": "Utah", "conf": "Big 12", "score": 2.02, "sor": 2.22, "rec": "13-0"}, {"team": "Alabama", "conf": "SEC", "score": 1.94, "sor": 1.27, "rec": "10-2"}, {"team": "Miami", "conf": "ACC", "score": 1.91, "sor": 1.93, "rec": "12-1"}, {"team": "Texas", "conf": "SEC", "score": 1.9, "sor": 1.61, "rec": "10-3"}, {"team": "Notre Dame", "conf": "FBS Independents", "score": 1.82, "sor": 0.9, "rec": "11-1"}, {"team": "Tennessee", "conf": "SEC", "score": 1.77, "sor": 0.9, "rec": "10-2"}, {"team": "Wake Forest", "conf": "ACC", "score": 1.58, "sor": 0.45, "rec": "11-2"}, {"team": "Oregon", "conf": "Big Ten", "score": 1.57, "sor": 0.52, "rec": "10-3"}, {"team": "UCLA", "conf": "Big Ten", "score": 1.49, "sor": 0.29, "rec": "11-2"}, {"team": "Texas Tech", "conf": "Big 12", "score": 1.47, "sor": 0.38, "rec": "11-2"}, {"team": "Indiana", "conf": "Big Ten", "score": 1.44, "sor": 0.03, "rec": "10-2"}, {"team": "BYU", "conf": "Big 12", "score": 1.44, "sor": 0.53, "rec": "10-2"}, {"team": "Iowa", "conf": "Big Ten", "score": 1.32, "sor": 0.08, "rec": "10-2"}, {"team": "Ohio State", "conf": "Big Ten", "score": 1.27, "sor": -0.53, "rec": "8-4"}, {"team": "Ole Miss", "conf": "SEC", "score": 1.25, "sor": -0.07, "rec": "8-4"}, {"team": "Louisville", "conf": "ACC", "score": 1.13, "sor": -1.03, "rec": "9-3"}, {"team": "Boise State", "conf": "Pac-12", "score": 1.12, "sor": -0.5, "rec": "11-2"}, {"team": "LSU", "conf": "SEC", "score": 1.12, "sor": -1.34, "rec": "7-5"}, {"team": "Florida", "conf": "SEC", "score": 1.11, "sor": -0.25, "rec": "8-4"}, {"team": "Missouri", "conf": "SEC", "score": 1.1, "sor": -0.8, "rec": "8-4"}, {"team": "Arizona", "conf": "Big 12", "score": 1.02, "sor": -0.91, "rec": "9-3"}, {"team": "USC", "conf": "Big Ten", "score": 1.02, "sor": -0.92, "rec": "8-4"}, {"team": "Oklahoma", "conf": "SEC", "score": 1.02, "sor": -1.35, "rec": "7-5"}, {"team": "Liberty", "conf": "Conference USA", "score": 1.0, "sor": -0.54, "rec": "12-1"}, {"team": "Houston", "conf": "Big 12", "score": 0.99, "sor": -0.66, "rec": "9-3"}, {"team": "Auburn", "conf": "SEC", "score": 0.98, "sor": -0.92, "rec": "7-5"}, {"team": "UTSA", "conf": "American Athletic", "score": 0.93, "sor": -0.33, "rec": "11-2"}, {"team": "Kentucky", "conf": "SEC", "score": 0.83, "sor": -1.07, "rec": "7-5"}, {"team": "Wisconsin", "conf": "Big Ten", "score": 0.83, "sor": -1.46, "rec": "8-4"}, {"team": "South Carolina", "conf": "SEC", "score": 0.81, "sor": -1.37, "rec": "7-5"}, {"team": "New Mexico", "conf": "Mountain West", "score": 0.81, "sor": -1.09, "rec": "11-2"}, {"team": "Louisiana Tech", "conf": "Sun Belt", "score": 0.81, "sor": -1.4, "rec": "10-3"}, {"team": "Toledo", "conf": "Mid-American", "score": 0.64, "sor": -1.56, "rec": "11-2"}, {"team": "Nebraska", "conf": "Big Ten", "score": 0.64, "sor": -2.48, "rec": "7-5"}, {"team": "Oklahoma State", "conf": "Big 12", "score": 0.63, "sor": -1.99, "rec": "8-4"}, {"team": "Texas State", "conf": "Pac-12", "score": 0.63, "sor": -2.2, "rec": "8-4"}, {"team": "Washington", "conf": "Big Ten", "score": 0.58, "sor": -2.45, "rec": "7-5"}, {"team": "SMU", "conf": "ACC", "score": 0.56, "sor": -1.7, "rec": "8-4"}, {"team": "Northwestern", "conf": "Big Ten", "score": 0.53, "sor": -2.41, "rec": "7-5"}, {"team": "Louisiana", "conf": "Sun Belt", "score": 0.52, "sor": -2.09, "rec": "9-3"}, {"team": "Duke", "conf": "ACC", "score": 0.47, "sor": -2.78, "rec": "7-5"}, {"team": "James Madison", "conf": "Sun Belt", "score": 0.44, "sor": -2.24, "rec": "9-3"}, {"team": "North Dakota State", "conf": "Mountain West", "score": 0.43, "sor": -2.22, "rec": "10-3"}, {"team": "Michigan", "conf": "Big Ten", "score": 0.37, "sor": -2.95, "rec": "6-6"}, {"team": "Baylor", "conf": "Big 12", "score": 0.36, "sor": -3.57, "rec": "6-6"}, {"team": "North Texas", "conf": "American Athletic", "score": 0.35, "sor": -2.39, "rec": "8-4"}, {"team": "Clemson", "conf": "ACC", "score": 0.35, "sor": -2.84, "rec": "7-5"}, {"team": "Air Force", "conf": "Mountain West", "score": 0.34, "sor": -2.37, "rec": "9-3"}, {"team": "Memphis", "conf": "American Athletic", "score": 0.31, "sor": -2.99, "rec": "9-4"}, {"team": "Penn State", "conf": "Big Ten", "score": 0.29, "sor": -3.42, "rec": "7-5"}, {"team": "Buffalo", "conf": "Mid-American", "score": 0.24, "sor": -2.32, "rec": "9-3"}, {"team": "North Carolina", "conf": "ACC", "score": 0.21, "sor": -3.39, "rec": "6-6"}, {"team": "Western Michigan", "conf": "Mid-American", "score": 0.21, "sor": -2.9, "rec": "9-4"}, {"team": "Georgia Southern", "conf": "Sun Belt", "score": 0.19, "sor": -3.87, "rec": "8-5"}, {"team": "Illinois", "conf": "Big Ten", "score": 0.18, "sor": -3.22, "rec": "6-6"}, {"team": "UCF", "conf": "Big 12", "score": 0.18, "sor": -3.17, "rec": "7-5"}, {"team": "Mississippi State", "conf": "SEC", "score": 0.17, "sor": -3.17, "rec": "5-7"}, {"team": "Pittsburgh", "conf": "ACC", "score": 0.14, "sor": -3.22, "rec": "7-5"}, {"team": "Arizona State", "conf": "Big 12", "score": 0.14, "sor": -3.63, "rec": "6-6"}], "kanpom_bracket": ["Georgia", "Alabama", "Notre Dame", "Tennessee", "Texas", "Utah", "Miami", "Wake Forest", "Oregon", "Indiana", "UCLA", "Boise State"], "kanpom": {"Georgia": {"rank": 1, "adj_em": 0.402, "conf": "SEC"}, "Alabama": {"rank": 2, "adj_em": 0.35, "conf": "SEC"}, "Notre Dame": {"rank": 3, "adj_em": 0.331, "conf": "FBS Independents"}, "Tennessee": {"rank": 4, "adj_em": 0.31, "conf": "SEC"}, "Texas": {"rank": 5, "adj_em": 0.3, "conf": "SEC"}, "Utah": {"rank": 6, "adj_em": 0.3, "conf": "Big 12"}, "Miami": {"rank": 7, "adj_em": 0.277, "conf": "ACC"}, "Wake Forest": {"rank": 8, "adj_em": 0.271, "conf": "ACC"}, "Oregon": {"rank": 9, "adj_em": 0.262, "conf": "Big Ten"}, "Indiana": {"rank": 10, "adj_em": 0.251, "conf": "Big Ten"}, "UCLA": {"rank": 11, "adj_em": 0.248, "conf": "Big Ten"}, "LSU": {"rank": 12, "adj_em": 0.242, "conf": "SEC"}, "Texas Tech": {"rank": 13, "adj_em": 0.234, "conf": "Big 12"}, "Ohio State": {"rank": 14, "adj_em": 0.229, "conf": "Big Ten"}, "Louisville": {"rank": 15, "adj_em": 0.218, "conf": "ACC"}, "BYU": {"rank": 16, "adj_em": 0.207, "conf": "Big 12"}, "Oklahoma": {"rank": 17, "adj_em": 0.201, "conf": "SEC"}, "Iowa": {"rank": 18, "adj_em": 0.197, "conf": "Big Ten"}, "Missouri": {"rank": 19, "adj_em": 0.185, "conf": "SEC"}, "Ole Miss": {"rank": 20, "adj_em": 0.183, "conf": "SEC"}, "Boise State": {"rank": 21, "adj_em": 0.169, "conf": "Pac-12"}, "USC": {"rank": 22, "adj_em": 0.165, "conf": "Big Ten"}, "Arizona": {"rank": 23, "adj_em": 0.164, "conf": "Big 12"}, "Auburn": {"rank": 24, "adj_em": 0.147, "conf": "SEC"}, "Nebraska": {"rank": 25, "adj_em": 0.144, "conf": "Big Ten"}, "Florida": {"rank": 26, "adj_em": 0.141, "conf": "SEC"}, "Wisconsin": {"rank": 27, "adj_em": 0.131, "conf": "Big Ten"}, "Houston": {"rank": 28, "adj_em": 0.13, "conf": "Big 12"}, "Baylor": {"rank": 29, "adj_em": 0.124, "conf": "Big 12"}, "Liberty": {"rank": 30, "adj_em": 0.122, "conf": "Conference USA"}, "Washington": {"rank": 31, "adj_em": 0.119, "conf": "Big Ten"}, "Louisiana Tech": {"rank": 32, "adj_em": 0.118, "conf": "Sun Belt"}, "South Carolina": {"rank": 33, "adj_em": 0.116, "conf": "SEC"}, "Texas State": {"rank": 34, "adj_em": 0.115, "conf": "Pac-12"}, "Duke": {"rank": 35, "adj_em": 0.099, "conf": "ACC"}, "Oklahoma State": {"rank": 36, "adj_em": 0.098, "conf": "Big 12"}, "Kentucky": {"rank": 37, "adj_em": 0.097, "conf": "SEC"}, "Northwestern": {"rank": 38, "adj_em": 0.095, "conf": "Big Ten"}, "New Mexico": {"rank": 39, "adj_em": 0.091, "conf": "Mountain West"}, "Penn State": {"rank": 40, "adj_em": 0.083, "conf": "Big Ten"}}, "sor_now": {"Georgia": 2.03, "Utah": 1.72, "Texas": 1.62, "Alabama": 1.03, "Notre Dame": 0.84, "Miami": 1.3, "Tennessee": 0.8, "Wake Forest": 0.67, "Texas Tech": 0.65, "UCLA": 0.45, "BYU": 0.46, "Indiana": 0.0, "Oregon": -0.16, "Iowa": -0.15, "Ole Miss": -0.15, "Ohio State": -0.65, "Oklahoma": -0.82, "USC": -0.49, "Boise State": -0.57, "Florida": -0.38, "LSU": -1.49, "Louisville": -1.31, "Missouri": -1.1, "Auburn": -0.71, "Arizona": -1.0, "Liberty": -0.61, "Kentucky": -0.45, "Houston": -0.86, "Louisiana Tech": -0.85, "UTSA": -0.59, "Wisconsin": -1.52, "New Mexico": -1.27, "South Carolina": -1.55, "Nebraska": -1.94, "Washington": -2.06, "North Dakota State": -1.42, "Texas State": -2.25, "Oklahoma State": -2.07, "Toledo": -1.75, "SMU": -1.81}};
+const pct = x => x >= 0.995 ? ">99%" : x < 0.005 ? (x > 0 ? "<1%" : "—") : Math.round(x * 100) + "%";
+const short = c => ({"FBS Independents":"Ind.","American Athletic":"American","Conference USA":"CUSA","Mid-American":"MAC","Mountain West":"MWC"}[c] || c);
+const rec = {}; D.chalk_rank.forEach(r => rec[r.team] = r.rec);
+const seedOf = {}; D.chalk_bracket.forEach((t, i) => seedOf[t] = i + 1);
+const conf = {}; D.teams.forEach(t => conf[t.team] = t.conf);
+const autos = new Set(Object.entries(D.chalk_champions).filter(([c]) => ["SEC","Big Ten","Big 12","ACC"].includes(c)).map(([, t]) => t));
+const g6 = D.chalk_bracket.find(t => ["American Athletic","Conference USA","Mid-American","Mountain West","Pac-12","Sun Belt"].includes(conf[t]));
+if (g6) autos.add(g6);
+if (D.chalk_bracket.includes("Notre Dame") && seedOf["Notre Dame"] <= 12) autos.add("Notre Dame");
+
+document.getElementById("lede").textContent =
+  `If the season goes chalk from here, ${D.chalk_games.at(-1).winner} wins the title. Byes go to ${D.chalk_bracket.slice(0,4).join(", ")}. Projection made ${D.generated} from ${D.n_sims.toLocaleString()} simulated finishes of the season.`;
+
+function row(team, p, isWin, bye) {
+  const s = seedOf[team];
+  return `<div class="row${isWin ? " win" : ""}${s <= 4 ? " bye" : ""}"><span class="seed">${s}</span>
+    <span class="team">${team}<small>${rec[team] || ""}</small></span><span class="pct num">${p == null ? "" : pct(p)}</span></div>`;
+}
+function game(g, site) {
+  return `<div class="game">${row(g.top, g.p_top, g.winner === g.top)}${row(g.bottom, 1 - g.p_top, g.winner === g.bottom)}<div class="site">${site}</div></div>`;
+}
+const G = D.chalk_games;
+const fr = G.filter(g => g.round === "First round"), qf = G.filter(g => g.round === "Quarterfinal"),
+      sf = G.filter(g => g.round === "Semifinal"), fi = G.find(g => g.round === "Final");
+document.getElementById("bracket").innerHTML = [
+  ["First round", fr.map(g => game(g, `at ${g.top}`))],
+  ["Quarterfinals", qf.map(g => game(g, "Neutral site"))],
+  ["Semifinals", sf.map(g => game(g, "Neutral site"))],
+  ["Final", [game(fi, "Las Vegas · Jan 25"), `<div class="champ"><span class="label">Champion</span><span class="name">${fi.winner}</span><span class="dim num">${pct(fi.winner === fi.top ? fi.p_top : 1 - fi.p_top)} to win the final · ${pct(D.teams.find(t => t.team === fi.winner).p_title)} to win it all from today</span></div>`]],
+].map(([h, gs]) => `<div class="col"><h3>${h}</h3><div class="games">${gs.join("")}</div></div>`).join("");
+
+const T = D.teams.filter(t => t.p_in >= 0.005);
+document.getElementById("oddsnote").textContent = `Every team that reached the field in at least 1 of ${D.n_sims.toLocaleString()} simulations. The committee rank is the Nov 24 release; KanPom is the current rating rank.`;
+const maxIn = 1;
+document.getElementById("odds").innerHTML = `<thead><tr><th class="l">Team</th><th class="l">Conf</th><th>Make field</th><th>Bye</th><th>Avg seed</th><th>Semis</th><th>Final</th><th>Title</th><th>KanPom</th><th>Committee</th></tr></thead><tbody>` +
+  T.map(t => `<tr><td><b>${t.team}</b></td><td class="l dim">${short(t.conf)}</td>
+    <td class="num"><span class="bar" style="width:${Math.round(t.p_in * 56)}px"></span>${pct(t.p_in)}</td><td class="num">${pct(t.p_bye)}</td>
+    <td class="num">${t.exp_seed.toFixed(1)}</td><td class="num">${pct(t.p_semi)}</td><td class="num">${pct(t.p_final)}</td><td class="num"><b>${pct(t.p_title)}</b></td>
+    <td class="num dim">${t.kp_rank}</td><td class="num dim">${t.cfp_rank ?? "NR"}</td></tr>`).join("") + "</tbody>";
+
+const committeeBracket = ["Georgia","Utah","Texas","Notre Dame","Tennessee","Alabama","Miami","Wake Forest","UCLA","BYU","Texas Tech","Boise State"];
+document.getElementById("compare").innerHTML = `<thead><tr><th class="l">Seed</th><th class="l">KanPom projection (chalk)</th><th class="l">Committee bracket, Nov 24</th><th class="l">KanPom ratings only</th></tr></thead><tbody>` +
+  D.chalk_bracket.map((t, i) => `<tr><td class="num"><b>${i + 1}</b></td><td class="l"><b>${t}</b> <span class="dim">${rec[t]}</span></td><td class="l">${committeeBracket[i]}</td><td class="l">${D.kanpom_bracket[i]}</td></tr>`).join("") + "</tbody>";
+
+const best = D.fit.find(f => f.a === D.emulator_weight_kanpom), kpOnly = D.fit.find(f => f.a === 1), sorOnly = D.fit.find(f => f.a === 0);
+document.getElementById("emu").innerHTML = `<p>The committee ranks résumés and KanPom ranks how good teams are. To copy the committee, each team gets a blend of two numbers: its KanPom rating, and its <b>strength of record</b>. That is its wins minus the wins a top-12 team would expect against the same schedule.</p>
+  <p>The blend that best reproduces the Nov 24 top 25 puts <b>${Math.round(best.a * 100)}% on KanPom quality and ${Math.round((1 - best.a) * 100)}% on strength of record</b>. That matches 11 of the committee's top 12, ${best.top25_overlap} of its top 25, and is off by ${best.mean_abs_rank_err.toFixed(1)} spots on average. KanPom alone is off by ${kpOnly.mean_abs_rank_err.toFixed(1)} and record alone by ${sorOnly.mean_abs_rank_err.toFixed(1)}. The committee rewards who you beat a bit more than how well you played.</p>`;
+const cr = {}; D.committee_now.forEach((t, i) => cr[t] = i + 1);
+const kr = {}; D.kanpom_now.forEach((t, i) => kr[t] = i + 1);
+document.getElementById("emutab").innerHTML = `<thead><tr><th>#</th><th class="l">Committee</th><th class="l">Emulator</th><th class="l">KanPom</th></tr></thead><tbody>` +
+  D.committee_now.slice(0, 16).map((t, i) => {
+    const e = D.emulator_now[i], k = D.kanpom_now[i];
+    return `<tr><td class="num dim">${i + 1}</td><td class="l"><b>${t}</b></td><td class="l${e === t ? "" : " dim"}">${e}</td><td class="l${k === t ? "" : " dim"}">${k}</td></tr>`;
+  }).join("") + "</tbody>";
+
+document.getElementById("confs").innerHTML = `<thead><tr><th class="l">Conference</th><th class="l">Favorite</th><th>Odds</th><th class="l">Next</th><th class="l">Then</th></tr></thead><tbody>` +
+  Object.entries(D.champions).map(([c, a]) => `<tr><td class="l"><b>${c}</b></td><td class="l">${a[0].team}</td><td class="num"><b>${pct(a[0].p)}</b></td>
+    <td class="l dim">${a[1] ? a[1].team + " " + pct(a[1].p) : ""}</td><td class="l dim">${a[2] ? a[2].team + " " + pct(a[2].p) : ""}</td></tr>`).join("") + "</tbody>";
+
+document.getElementById("fieldshare").textContent = pct(D.field_share);
+document.getElementById("foot").textContent = `Built from the KanPom CFB ratings (current through Week 12) with scripts/cfp_bracket.py. Committee data: CFP rankings release #4, Nov 24, 2026. Not betting advice.`;
+</script>
+
+</body>
+</html>
